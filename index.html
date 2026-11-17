@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Шахматы</title>
+  <style>
+    body { font-family: sans-serif; background: #222; color: #eee; margin: 0; padding: 16px; }
+    #board { display: grid; grid-template-columns: repeat(8, 1fr); width: 100%; max-width: 400px; margin: 0 auto; aspect-ratio: 1; border: 2px solid #444; }
+    .square { display: flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; position: relative; }
+    .light { background: #f0d9b5; }
+    .dark { background: #b58863; }
+    .blocked { background: #444 !important; cursor: not-allowed; border: 1px solid #222; }
+    
+    /* Стили для картинок фигур */
+    .piece-img { width: 85%; height: 85%; object-fit: contain; pointer-events: none; }
+
+    #controls { max-width: 400px; margin: 16px auto; display: flex; gap: 8px; flex-wrap: wrap; }
+    button { flex: 1; padding: 12px; font-size: 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+    #status { text-align: center; margin-top: 12px; font-size: 16px; color: #fff; min-height: 24px; }
+    
+    /* Стили для подсветки */
+    .selected { box-shadow: inset 0 0 0 4px #e74c3c; }
+    .move-dot { width: 20px; height: 20px; background: rgba(46, 204, 113, 0.6); border-radius: 50%; position: absolute; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <div id="board"></div>
+  <div id="controls"></div>
+  <div id="status">Подключение к базе...</div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <script>
+    const isHost = location.hash === '#h';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAJJr63C9nLQ6SHHwDbqTmX3xHFY-_eyXM",
+      authDomain: "chess-30025.firebaseapp.com",
+      databaseURL: "https://chess-30025-default-rtdb.firebaseio.com",
+      projectId: "chess-30025",
+      storageBucket: "chess-30025.firebasestorage.app",
+      messagingSenderId: "33351797755",
+      appId: "1:33351797755:web:bea157f178c09b6c0d595e",
+      measurementId: "G-BB0Y611NYN"
+    };
+    
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let board = Array(64).fill(null);
+    let blocked = new Set();
+    let selected = null;
+    let currentTurn = 'w'; 
+
+    const startBoard = () => {
+      board = Array(64).fill(null);
+      
+      // Черные (сверху)
+      board[0] = 'bR'; board[1] = 'bN'; board[2] = 'bB'; board[3] = 'bQ'; 
+      board[4] = 'bK'; board[5] = 'bB'; board[6] = 'bN'; board[7] = 'bR';
+      for (let i = 8; i < 16; i++) board[i] = 'bP'; 
+      
+      // Белые (снизу)
+      for (let i = 48; i < 56; i++) board[i] = 'wP'; 
+      board[56] = 'wR'; board[57] = 'wN'; board[58] = 'wB'; board[59] = 'wQ'; 
+      board[60] = 'wK'; board[61] = 'wB'; board[62] = 'wN'; board[63] = 'wR';
+    };
+    startBoard();
+
+    // Словарь для связи кода фигуры и имени файла
+    const pieceFiles = {
+        'wP': 'white_pawn.png', 'wR': 'white_rook.png', 'wN': 'white_knight.png',
+        'wB': 'white_bishop.png', 'wQ': 'white_qween.png', // <-- Исправлено под ваше имя
+        'wK': 'white_king.png',
+        'bP': 'black_pawn.png', 'bR': 'black_rook.png', 'bN': 'black_knight.png',
+        'bB': 'black_bishop.png', 'bQ': 'black_queen.png', 'bK': 'black_king.png'
+    };
+
+    const boardEl = document.getElementById('board');
+    const statusEl = document.getElementById('status');
+
+    function render() {
+      boardEl.innerHTML = '';
+      for (let i = 0; i < 64; i++) {
+        const sq = document.createElement('div');
+        const row = Math.floor(i / 8);
+        const col = i % 8;
+        sq.className = 'square ' + ((row + col) % 2 === 0 ? 'light' : 'dark');
+        
+        if (blocked.has(i)) sq.classList.add('blocked');
+        if (selected === i) sq.classList.add('selected');
+        
+        if (selected !== null && selected !== i && !blocked.has(i)) {
+           if (!board[i] || (board[i] && board[i][0] !== currentTurn)) {
+               const dot = document.createElement('div');
+               dot.className = 'move-dot';
+               sq.appendChild(dot);
+           }
+        }
+
+        if (board[i]) {
+            const img = document.createElement('img');
+            img.src = pieceFiles[board[i]];
+            img.className = 'piece-img';
+            sq.appendChild(img);
+        }
+        
+        sq.dataset.index = i;
+        sq.addEventListener('click', () => onSquareClick(i));
+        boardEl.appendChild(sq);
+      }
+    }
+
+    function onSquareClick(i) {
+      if (blocked.has(i)) return;
+      
+      if (selected === null) {
+        if (board[i] && board[i][0] === currentTurn) {
+            selected = i;
+            render();
+        }
+      } else {
+        if (i === selected) { 
+            selected = null; render(); return; 
+        }
+        
+        const piece = board[selected];
+        const target = board[i];
+        
+        if (target && target[0] === piece[0]) { 
+            selected = null; render(); return; 
+        }
+        
+        board[i] = piece;
+        board[selected] = null;
+        selected = null;
+        currentTurn = currentTurn === 'w' ? 'b' : 'w';
+        syncToFirebase();
+        render();
+      }
+    }
+
+    const roomRef = db.ref('rooms/default');
+
+    function syncToFirebase() {
+      roomRef.set({
+        board: board,
+        blocked: Array.from(blocked),
+        turn: currentTurn,
+        updated: Date.now()
+      });
+    }
+
+    roomRef.on('value', (snap) => {
+      const data = snap.val();
+      if (!data) {
+        statusEl.textContent = 'Сделайте ход или нажмите кнопку';
+        return;
+      }
+      board = data.board || board;
+      blocked = new Set(data.blocked || []);
+      currentTurn = data.turn || 'w';
+      render();
+      statusEl.textContent = currentTurn === 'w' ? 'Ход белых' : 'Ход чёрных';
+    });
+
+    const controls = document.getElementById('controls');
+    if (isHost) {
+      const btnSteal = document.createElement('button');
+      btnSteal.textContent = '👽 Украсть';
+      btnSteal.style.background = '#c0392b';
+      btnSteal.style.color = '#fff';
+      btnSteal.onclick = () => {
+        statusEl.textContent = 'Нажмите на фигуру ПРОТИВНИКА';
+        const handler = (e) => {
+          const idx = parseInt(e.target.dataset.index || e.target.parentNode.dataset.index);
+          if (!isNaN(idx) && board[idx] && board[idx][0] !== 'w') {
+            board[idx] = null;
+            syncToFirebase();
+            render();
+            statusEl.textContent = 'Фигура украдена!';
+          }
+          boardEl.removeEventListener('click', handler);
+        };
+        boardEl.addEventListener('click', handler, { once: true });
+      };
+
+      const btnSpawn = document.createElement('button');
+      btnSpawn.textContent = '♙ Создать пешку';
+      btnSpawn.style.background = '#27ae60';
+      btnSpawn.style.color = '#fff';
+      btnSpawn.onclick = () => {
+        statusEl.textContent = 'Нажмите на пустую клетку';
+        const handler = (e) => {
+          const idx = parseInt(e.target.dataset.index || e.target.parentNode.dataset.index);
+          if (!isNaN(idx) && !board[idx] && !blocked.has(idx)) {
+            board[idx] = 'wP';
+            syncToFirebase();
+            render();
+            statusEl.textContent = 'Пешка создана!';
+          }
+          boardEl.removeEventListener('click', handler);
+        };
+        boardEl.addEventListener('click', handler, { once: true });
+      };
+
+      const btnBlock = document.createElement('button');
+      btnBlock.textContent = '🚫 Удалить клетку';
+      btnBlock.style.background = '#8e44ad';
+      btnBlock.style.color = '#fff';
+      btnBlock.onclick = () => {
+        statusEl.textContent = 'Нажмите на клетку для блокировки';
+        const handler = (e) => {
+          const idx = parseInt(e.target.dataset.index || e.target.parentNode.dataset.index);
+          if (!isNaN(idx)) {
+            blocked.add(idx);
+            board[idx] = null;
+            syncToFirebase();
+            render();
+            statusEl.textContent = 'Клетка удалена!';
+          }
+          boardEl.removeEventListener('click', handler);
+        };
+        boardEl.addEventListener('click', handler, { once: true });
+      };
+
+      controls.appendChild(btnSteal);
+      controls.appendChild(btnSpawn);
+      controls.appendChild(btnBlock);
+    }
+
+    render();
+  </script>
+</body>
+  </html>
