@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Шахматы</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: sans-serif; background: #222; color: #eee; margin: 0; padding: 16px; display: flex; flex-direction: column; align-items: center; }
+    
+    /* ФИКСИРОВАННЫЙ РАЗМЕР ДОСКИ */
+    #board { 
+      display: grid; 
+      grid-template-columns: repeat(8, 45px); /* 8 клеток по 45px */
+      grid-template-rows: repeat(8, 45px);    /* 8 клеток по 45px */
+      width: 360px;  /* 8 * 45 = 360px */
+      height: 360px; 
+      border: 2px solid #444;
+      margin: 0 auto;
+    }
+    
+    /* ФИКСИРОВАННЫЙ РАЗМЕР КЛЕТКИ */
+    .square { 
+      width: 45px;
+      height: 45px;
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      cursor: pointer; 
+      user-select: none; 
+      position: relative;
+      overflow: hidden; /* Обрезаем всё, что вылезает за клетку */
+    }
+    
+    .light { background: #f0d9b5; }
+    .dark { background: #b58863; }
+    .blocked { background: #444 !important; cursor: not-allowed; border: 1px solid #222; }
+    
+    /* ФИГУРЫ ПОДГОНЯЮТСЯ ПОД РАЗМЕР КЛЕТКИ */
+    .piece-img { 
+      width: 100%;   /* Занимает ровно 100% ширины клетки (45px) */
+      height: 100%;  /* Занимает ровно 100% высоты клетки (45px) */
+      object-fit: contain; /* Картинка вписывается, сохраняя пропорции */
+      pointer-events: none; 
+      display: block;
+    }
+
+    #controls { width: 360px; display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+    button { flex: 1; padding: 12px; font-size: 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+    #status { text-align: center; margin-top: 12px; font-size: 16px; color: #fff; min-height: 24px; }
+    
+    .selected { box-shadow: inset 0 0 0 4px #e74c3c; }
+    .move-dot { width: 16px; height: 16px; background: rgba(46, 204, 113, 0.6); border-radius: 50%; position: absolute; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <div id="board"></div>
+  <div id="controls"></div>
+  <div id="status">Подключение к базе...</div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <script>
+    const isHost = location.hash === '#h';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAJJr63C9nLQ6SHHwDbqTmX3xHFY-_eyXM",
+      authDomain: "chess-30025.firebaseapp.com",
+      databaseURL: "https://chess-30025-default-rtdb.firebaseio.com",
+      projectId: "chess-30025",
+      storageBucket: "chess-30025.firebasestorage.app",
+      messagingSenderId: "33351797755",
+      appId: "1:33351797755:web:bea157f178c09b6c0d595e",
+      measurementId: "G-BB0Y611NYN"
+    };
+    
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let board = Array(64).fill(null);
+    let blocked = new Set();
+    let selected = null;
+    let currentTurn = 'w'; 
+
+    const startBoard = () => {
+      board = Array(64).fill(null);
+      
+      // Черные (сверху)
+      board[0] = 'bR'; board[1] = 'bN'; board[2] = 'bB'; board[3] = 'bQ'; 
+      board[4] = 'bK'; board[5] = 'bB'; board[6] = 'bN'; board[7] = 'bR';
+      for (let i = 8; i < 16; i++) board[i] = 'bP'; 
+      
+      // Белые (снизу)
+      for (let i = 48; i < 56; i++) board[i] = 'wP'; 
+      board[56] = 'wR'; board[57] = 'wN'; board[58] = 'wB'; board[59] = 'wQ'; 
+      board[60] = 'wK'; board[61] = 'wB'; board[62] = 'wN'; board[63] = 'wR';
+    };
+    startBoard();
+
+    const pieceFiles = {
+        'wP': 'white_pawn.png', 'wR': 'white_rook.png', 'wN': 'white_knight.png',
+        'wB': 'white_bishop.png', 'wQ': 'white_qween.png', 
+        'wK': 'white_king.png',
+        'bP': 'black_pawn.png', 'bR': 'black_rook.png', 'bN': 'black_knight.png',
+        'bB': 'black_bishop.png', 'bQ': 'black_qween.png', 
+        'bK': 'black_king.png'
+    };
+
+    const isValid = (r, c) => r >= 0 && r < 8 && c >= 0 && c < 8;
+
+    function getValidMoves(index) {
+      const piece = board[index];
+      if (!piece) return [];
+      
+      const color = piece[0];
+      const type = piece[1];
+      const row = Math.floor(index / 8);
+      const col = index % 8;
+      let moves = [];
+
+      const addMove = (r, c) => {
+        if (!isValid(r, c)) return false;
+        const targetIdx = r * 8 + c;
+        if (blocked.has(targetIdx)) return false;
+        const targetPiece = board[targetIdx];
+        if (targetPiece && targetPiece[0] === color) return false;
+        moves.push(targetIdx);
+        return !targetPiece;
+      };
+
+      if (type === 'P') {
+        const dir = color === 'w' ? -1 : 1;
+        const startRow = color === 'w' ? 6 : 1;
+
+        if (isValid(row + dir, col) && !board[(row + dir) * 8 + col] && !blocked.has((row + dir) * 8 + col)) {
+          moves.push((row + dir) * 8 + col);
+          if (row === startRow && !board[(row + 2 * dir) * 8 + col] && !blocked.has((row + 2 * dir) * 8 + col)) {
+            moves.push((row + 2 * dir) * 8 + col);
+          }
+        }
+        for (let dc of [-1, 1]) {
+          const nr = row + dir, nc = col + dc;
+          if (isValid(nr, nc)) {
+            const tIdx = nr * 8 + nc;
+            const tPiece = board[tIdx];
+            if (tPiece && tPiece[0] !== color && !blocked.has(tIdx)) {
+              moves.push(tIdx);
+            }
+          }
+        }
+      } 
+      else if (type === 'N') {
+        const offsets = [[-2,-1], [-2,1], [-1,-2], [-1,2], [1,-2], [1,2], [2,-1], [2,1]];
+        for (let [dr, dc] of offsets) addMove(row + dr, col + dc);
+      } 
+      else if (type === 'B') {
+        for (let [dr, dc] of [[-1,-1], [-1,1], [1,-1], [1,1]]) {
+          let r = row + dr, c = col + dc;
+          while (isValid(r, c)) {
+            if (!addMove(r, c)) break;
+            r += dr; c += dc;
+          }
+        }
+      } 
+      else if (type === 'R') {
+        for (let [dr, dc] of [[-1,0], [1,0], [0,-1], [0,1]]) {
+          let r = row + dr, c = col + dc;
+          while (isValid(r, c)) {
+            if (!addMove(r, c)) break;
+            r += dr; c += dc;
+          }
+        }
+      } 
+      else if (type === 'Q') {
+        for (let [dr, dc] of [[-1,-1], [-1,1], [1,-1], [1,1], [-1,0], [1,0], [0,-1], [0,1]]) {
+          let r = row + dr, c = col + dc;
+          while (isValid(r, c)) {
+            if (!addMove(r, c)) break;
+            r += dr; c += dc;
+          }
+        }
+      } 
+      else if (type === 'K') {
+        for (let [dr, dc] of [[-1,-1], [-1,0], [-1,1], [0,-1], [0,1], [1,-1], [1,0], [1,1]]) {
+          addMove(row + dr, col + dc);
+        }
+      }
+      return moves;
+    }
+
+    const boardEl = document.getElementById('board');
+    const statusEl = document.getElementById('status');
+
+    function render() {
+      boardEl.innerHTML = '';
+      let possibleMoves = selected !== null ? getValidMoves(selected) : [];
+
+      for (let i = 0; i < 64; i++) {
+        const sq = document.createElement('div');
+        const row = Math.floor(i / 8);
+        const col = i % 8;
+        sq.className = 'square ' + ((row + col) % 2 === 0 ? 'light' : 'dark');
+        
+        if (blocked.has(i)) sq.classList.add('blocked');
+        if (selected === i) sq.classList.add('selected');
+        
+        if (possibleMoves.includes(i)) {
+           const dot = document.createElement('div');
+           dot.className = 'move-dot';
+           sq.appendChild(dot);
+        }
+
+        if (board[i]) {
+            const img = document.createElement('img');
+            img.src = pieceFiles[board[i]];
+            img.className = 'piece-img';
+            sq.appendChild(img);
+        }
+        
+        sq.dataset.index = i;
+        sq.addEventListener('click', () => onSquareClick(i));
+        boardEl.appendChild(sq);
+      }
+    }
+
+    function onSquareClick(i) {
+      if (blocked.has(i)) return;
+      
+      if (selected === null) {
+        if (board[i] && board[i][0] === currentTurn) {
+            selected = i;
+            render();
+        }
+      } else {
+        if (i === selected) { 
+            selected = null; render(); return; 
+        }
+        
+        const piece = board[selected];
+        const validMoves = getValidMoves(selected);
+        
+        if (validMoves.includes(i)) {
+            board[i] = piece;
+            board[selected] = null;
+            
+            if (piece === 'wP' && Math.floor(i / 8) === 0) board[i] = 'wQ';
+            if (piece === 'bP' && Math.floor(i / 8) === 7) board[i] = 'bQ';
+
+            selected = null;
+            currentTurn = currentTurn === 'w' ? 'b' : 'w';
+            syncToFirebase();
+            render();
+        } else {
+            if (board[i] && board[i][0] === currentTurn) {
+                selected = i;
+                render();
+            } else {
+                selected = null;
+                render();
+            }
+        }
+      }
+    }
+
+    const roomRef = db.ref('rooms/default');
+
+    function syncToFirebase() {
+      roomRef.set({
+        board: board,
+        blocked: Array.from(blocked),
+        turn: currentTurn,
+        updated: Date.now()
+      });
+    }
+
+    roomRef.on('value', (snap) => {
+      const data = snap.val();
+      if (!data) {
+        statusEl.textContent = 'Сделайте ход или нажмите кнопку';
+        return;
+      }
+      board = data.board || board;
+      blocked = new Set(data.blocked || []);
+      currentTurn = data.turn || 'w';
+      render();
+      statusEl.textContent = currentTurn === 'w' ? 'Ход белых' : 'Ход чёрных';
+    });
+
+    const controls = document.getElementById('controls');
+    if (isHost) {
+      const btnSteal = document.createElement('button');
+      btnSteal.textContent = '👽 Украсть';
+      btnSteal.style.background = '#c0392b';
+      btnSteal.style.color = '#fff';
+      btnSteal.onclick = () => {
+        statusEl.textContent = 'Нажмите на фигуру ПРОТИВНИКА';
+        const handler = (e) => {
+          const idx = parseInt(e.target.dataset.index || e.target.parentNode.dataset.index);
+          if (!isNaN(idx) && board[idx] && board[idx][0] !== 'w') {
+            board[idx] = null;
+            syncToFirebase();
+            render();
+            statusEl.textContent = 'Фигура украдена!';
+          }
+          boardEl.removeEventListener('click', handler);
+        };
+        boardEl.addEventListener('click', handler, { once: true });
+      };
+
+      const btnSpawn = document.createElement('button');
+      btnSpawn.textContent = '♙ Создать пешку';
+      btnSpawn.style.background = '#27ae60';
+      btnSpawn.style.color = '#fff';
+      btnSpawn.onclick = () => {
+        statusEl.textContent = 'Нажмите на пустую клетку';
+        const handler = (e) => {
+          const idx = parseInt(e.target.dataset.index || e.target.parentNode.dataset.index);
+          if (!isNaN(idx) && !board[idx] && !blocked.has(idx)) {
+            board[idx] = 'wP';
+            syncToFirebase();
+            render();
+            statusEl.textContent = 'Пешка создана!';
+          }
+          boardEl.removeEventListener('click', handler);
+        };
+        boardEl.addEventListener('click', handler, { once: true });
+      };
+
+      const btnBlock = document.createElement('button');
+      btnBlock.textContent = '🚫 Удалить клетку';
+      btnBlock.style.background = '#8e44ad';
+      btnBlock.style.color = '#fff';
+      btnBlock.onclick = () => {
+        statusEl.textContent = 'Нажмите на клетку для блокировки';
+        const handler = (e) => {
+          const idx = parseInt(e.target.dataset.index || e.target.parentNode.dataset.index);
+          if (!isNaN(idx)) {
+            blocked.add(idx);
+            board[idx] = null;
+            syncToFirebase();
+            render();
+            statusEl.textContent = 'Клетка удалена!';
+          }
+          boardEl.removeEventListener('click', handler);
+        };
+        boardEl.addEventListener('click', handler, { once: true });
+      };
+
+      controls.appendChild(btnSteal);
+      controls.appendChild(btnSpawn);
+      controls.appendChild(btnBlock);
+    }
+
+    render();
+  </script>
+</body>
+</html>
