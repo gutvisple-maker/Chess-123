@@ -8,49 +8,47 @@
     * { box-sizing: border-box; }
     body { font-family: sans-serif; background: #222; color: #eee; margin: 0; padding: 16px; display: flex; flex-direction: column; align-items: center; }
     
-    /* ФИКСИРОВАННЫЙ РАЗМЕР ДОСКИ */
     #board { 
       display: grid; 
-      grid-template-columns: repeat(8, 45px); /* 8 клеток по 45px */
-      grid-template-rows: repeat(8, 45px);    /* 8 клеток по 45px */
-      width: 360px;  /* 8 * 45 = 360px */
-      height: 360px; 
+      grid-template-columns: repeat(8, 42px); 
+      grid-template-rows: repeat(8, 42px);    
+      width: 336px;  
+      height: 336px; 
       border: 2px solid #444;
       margin: 0 auto;
     }
     
-    /* ФИКСИРОВАННЫЙ РАЗМЕР КЛЕТКИ */
     .square { 
-      width: 45px;
-      height: 45px;
+      width: 42px;
+      height: 42px;
       display: flex; 
       align-items: center; 
       justify-content: center; 
       cursor: pointer; 
       user-select: none; 
       position: relative;
-      overflow: hidden; /* Обрезаем всё, что вылезает за клетку */
+      overflow: hidden; 
     }
     
     .light { background: #f0d9b5; }
     .dark { background: #b58863; }
     .blocked { background: #444 !important; cursor: not-allowed; border: 1px solid #222; }
     
-    /* ФИГУРЫ ПОДГОНЯЮТСЯ ПОД РАЗМЕР КЛЕТКИ */
     .piece-img { 
-      width: 100%;   /* Занимает ровно 100% ширины клетки (45px) */
-      height: 100%;  /* Занимает ровно 100% высоты клетки (45px) */
-      object-fit: contain; /* Картинка вписывается, сохраняя пропорции */
+      width: 100%;   
+      height: 100%;  
+      object-fit: contain; 
       pointer-events: none; 
       display: block;
     }
 
-    #controls { width: 360px; display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
-    button { flex: 1; padding: 12px; font-size: 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
-    #status { text-align: center; margin-top: 12px; font-size: 16px; color: #fff; min-height: 24px; }
+    #controls { width: 336px; display: flex; gap: 6px; flex-wrap: wrap; margin-top: 16px; }
+    button { flex: 1; padding: 10px; font-size: 13px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+    #status { text-align: center; margin-top: 12px; font-size: 16px; color: #fff; min-height: 24px; font-weight: bold; }
     
     .selected { box-shadow: inset 0 0 0 4px #e74c3c; }
     .move-dot { width: 16px; height: 16px; background: rgba(46, 204, 113, 0.6); border-radius: 50%; position: absolute; pointer-events: none; }
+    .check { background: #e74c3c !important; color: white; }
   </style>
 </head>
 <body>
@@ -82,16 +80,14 @@
     let blocked = new Set();
     let selected = null;
     let currentTurn = 'w'; 
+    let gameOver = false;
 
     const startBoard = () => {
       board = Array(64).fill(null);
-      
-      // Черные (сверху)
+      gameOver = false;
       board[0] = 'bR'; board[1] = 'bN'; board[2] = 'bB'; board[3] = 'bQ'; 
       board[4] = 'bK'; board[5] = 'bB'; board[6] = 'bN'; board[7] = 'bR';
       for (let i = 8; i < 16; i++) board[i] = 'bP'; 
-      
-      // Белые (снизу)
       for (let i = 48; i < 56; i++) board[i] = 'wP'; 
       board[56] = 'wR'; board[57] = 'wN'; board[58] = 'wB'; board[59] = 'wQ'; 
       board[60] = 'wK'; board[61] = 'wB'; board[62] = 'wN'; board[63] = 'wR';
@@ -107,12 +103,70 @@
         'bK': 'black_king.png'
     };
 
+    // --- МАГИЯ: Автоматическая обрезка прозрачных краев картинок ---
+    const croppedImages = {};
+
+    function cropImage(src, callback) {
+        const img = new Image();
+        img.crossOrigin = "Anonymous"; // Важно для GitHub Pages
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imgData.data;
+            let top = canvas.height, left = canvas.width, right = 0, bottom = 0;
+
+            // Ищем, где начинаются и заканчиваются непрозрачные пиксели
+            for (let y = 0; y < canvas.height; y++) {
+                for (let x = 0; x < canvas.width; x++) {
+                    const alpha = data[(y * canvas.width + x) * 4 + 3];
+                    if (alpha > 10) { // Если пиксель не прозрачный
+                        if (x < left) left = x;
+                        if (x > right) right = x;
+                        if (y < top) top = y;
+                        if (y > bottom) bottom = y;
+                    }
+                }
+            }
+
+            // Обрезаем и возвращаем новый DataURL
+            if (right >= left && bottom >= top) {
+                const croppedCanvas = document.createElement('canvas');
+                croppedCanvas.width = right - left + 1;
+                croppedCanvas.height = bottom - top + 1;
+                croppedCanvas.getContext('2d').drawImage(canvas, left, top, croppedCanvas.width, croppedCanvas.height, 0, 0, croppedCanvas.width, croppedCanvas.height);
+                callback(croppedCanvas.toDataURL());
+            } else {
+                callback(src); // Если пусто, возвращаем как есть
+            }
+        };
+        img.src = src;
+    }
+
+    let loadedCount = 0;
+    const totalImages = Object.keys(pieceFiles).length;
+
+    // Загружаем и обрезаем все картинки перед стартом игры
+    for (const key in pieceFiles) {
+        cropImage(pieceFiles[key], (croppedData) => {
+            croppedImages[key] = croppedData;
+            loadedCount++;
+            if (loadedCount === totalImages) {
+                render(); // Когда все обрезаны, запускаем игру
+            }
+        });
+    }
+    // -----------------------------------------------------------
+
     const isValid = (r, c) => r >= 0 && r < 8 && c >= 0 && c < 8;
 
-    function getValidMoves(index) {
+    function getRawMoves(index) {
       const piece = board[index];
       if (!piece) return [];
-      
       const color = piece[0];
       const type = piece[1];
       const row = Math.floor(index / 8);
@@ -132,7 +186,6 @@
       if (type === 'P') {
         const dir = color === 'w' ? -1 : 1;
         const startRow = color === 'w' ? 6 : 1;
-
         if (isValid(row + dir, col) && !board[(row + dir) * 8 + col] && !blocked.has((row + dir) * 8 + col)) {
           moves.push((row + dir) * 8 + col);
           if (row === startRow && !board[(row + 2 * dir) * 8 + col] && !blocked.has((row + 2 * dir) * 8 + col)) {
@@ -144,49 +197,105 @@
           if (isValid(nr, nc)) {
             const tIdx = nr * 8 + nc;
             const tPiece = board[tIdx];
-            if (tPiece && tPiece[0] !== color && !blocked.has(tIdx)) {
-              moves.push(tIdx);
-            }
+            if (tPiece && tPiece[0] !== color && !blocked.has(tIdx)) moves.push(tIdx);
           }
         }
       } 
       else if (type === 'N') {
-        const offsets = [[-2,-1], [-2,1], [-1,-2], [-1,2], [1,-2], [1,2], [2,-1], [2,1]];
-        for (let [dr, dc] of offsets) addMove(row + dr, col + dc);
+        for (let [dr, dc] of [[-2,-1], [-2,1], [-1,-2], [-1,2], [1,-2], [1,2], [2,-1], [2,1]]) addMove(row + dr, col + dc);
       } 
       else if (type === 'B') {
         for (let [dr, dc] of [[-1,-1], [-1,1], [1,-1], [1,1]]) {
           let r = row + dr, c = col + dc;
-          while (isValid(r, c)) {
-            if (!addMove(r, c)) break;
-            r += dr; c += dc;
-          }
+          while (isValid(r, c)) { if (!addMove(r, c)) break; r += dr; c += dc; }
         }
       } 
       else if (type === 'R') {
         for (let [dr, dc] of [[-1,0], [1,0], [0,-1], [0,1]]) {
           let r = row + dr, c = col + dc;
-          while (isValid(r, c)) {
-            if (!addMove(r, c)) break;
-            r += dr; c += dc;
-          }
+          while (isValid(r, c)) { if (!addMove(r, c)) break; r += dr; c += dc; }
         }
       } 
       else if (type === 'Q') {
         for (let [dr, dc] of [[-1,-1], [-1,1], [1,-1], [1,1], [-1,0], [1,0], [0,-1], [0,1]]) {
           let r = row + dr, c = col + dc;
-          while (isValid(r, c)) {
-            if (!addMove(r, c)) break;
-            r += dr; c += dc;
-          }
+          while (isValid(r, c)) { if (!addMove(r, c)) break; r += dr; c += dc; }
         }
       } 
       else if (type === 'K') {
-        for (let [dr, dc] of [[-1,-1], [-1,0], [-1,1], [0,-1], [0,1], [1,-1], [1,0], [1,1]]) {
-          addMove(row + dr, col + dc);
-        }
+        for (let [dr, dc] of [[-1,-1], [-1,0], [-1,1], [0,-1], [0,1], [1,-1], [1,0], [1,1]]) addMove(row + dr, col + dc);
       }
       return moves;
+    }
+
+    function isKingInCheck(color, tempBoard = board) {
+        let kingIdx = tempBoard.indexOf(color + 'K');
+        if (kingIdx === -1) return false;
+        const originalBoard = board;
+        board = tempBoard; 
+        for (let i = 0; i < 64; i++) {
+            if (board[i] && board[i][0] !== color) {
+                let moves = getRawMoves(i);
+                if (moves.includes(kingIdx)) {
+                    board = originalBoard;
+                    return true;
+                }
+            }
+        }
+        board = originalBoard;
+        return false;
+    }
+
+    function getValidMoves(index) {
+        let rawMoves = getRawMoves(index);
+        let validMoves = [];
+        const piece = board[index];
+        if (!piece) return [];
+        const color = piece[0];
+
+        for (let move of rawMoves) {
+            let tempBoard = [...board];
+            tempBoard[move] = piece;
+            tempBoard[index] = null;
+            if (piece === 'wP' && Math.floor(move / 8) === 0) tempBoard[move] = 'wQ';
+            if (piece === 'bP' && Math.floor(move / 8) === 7) tempBoard[move] = 'bQ';
+
+            if (!isKingInCheck(color, tempBoard)) {
+                validMoves.push(move);
+            }
+        }
+        return validMoves;
+    }
+
+    function checkGameState() {
+        let hasMoves = false;
+        for (let i = 0; i < 64; i++) {
+            if (board[i] && board[i][0] === currentTurn) {
+                if (getValidMoves(i).length > 0) {
+                    hasMoves = true;
+                    break;
+                }
+            }
+        }
+        
+        const inCheck = isKingInCheck(currentTurn);
+        
+        if (!hasMoves) {
+            gameOver = true;
+            if (inCheck) {
+                statusEl.textContent = `МАТ! Победили ${currentTurn === 'w' ? 'чёрные' : 'белые'}!`;
+                statusEl.style.color = '#e74c3c';
+            } else {
+                statusEl.textContent = 'ПАТ! Ничья.';
+                statusEl.style.color = '#f1c40f';
+            }
+        } else if (inCheck) {
+            statusEl.textContent = 'ШАХ!';
+            statusEl.style.color = '#e74c3c';
+        } else {
+            statusEl.textContent = currentTurn === 'w' ? 'Ход белых' : 'Ход чёрных';
+            statusEl.style.color = '#fff';
+        }
     }
 
     const boardEl = document.getElementById('board');
@@ -194,7 +303,9 @@
 
     function render() {
       boardEl.innerHTML = '';
-      let possibleMoves = selected !== null ? getValidMoves(selected) : [];
+      let possibleMoves = (selected !== null && !gameOver) ? getValidMoves(selected) : [];
+      let checkIdx = -1;
+      if (isKingInCheck(currentTurn)) checkIdx = board.indexOf(currentTurn + 'K');
 
       for (let i = 0; i < 64; i++) {
         const sq = document.createElement('div');
@@ -204,6 +315,7 @@
         
         if (blocked.has(i)) sq.classList.add('blocked');
         if (selected === i) sq.classList.add('selected');
+        if (i === checkIdx) sq.classList.add('check');
         
         if (possibleMoves.includes(i)) {
            const dot = document.createElement('div');
@@ -213,8 +325,13 @@
 
         if (board[i]) {
             const img = document.createElement('img');
-            img.src = pieceFiles[board[i]];
-            img.className = 'piece-img';
+            // Используем обрезанную картинку
+            img.src = croppedImages[board[i]] || pieceFiles[board[i]];
+            img.className = 'piece-img'; 
+            
+            // Добавляем небольшой отступ, чтобы обрезанные фигуры не прилипали
+            img.style.padding = '5%';
+            
             sq.appendChild(img);
         }
         
@@ -225,7 +342,7 @@
     }
 
     function onSquareClick(i) {
-      if (blocked.has(i)) return;
+      if (blocked.has(i) || gameOver) return;
       
       if (selected === null) {
         if (board[i] && board[i][0] === currentTurn) {
@@ -251,6 +368,7 @@
             currentTurn = currentTurn === 'w' ? 'b' : 'w';
             syncToFirebase();
             render();
+            checkGameState();
         } else {
             if (board[i] && board[i][0] === currentTurn) {
                 selected = i;
@@ -277,17 +395,18 @@
     roomRef.on('value', (snap) => {
       const data = snap.val();
       if (!data) {
-        statusEl.textContent = 'Сделайте ход или нажмите кнопку';
+        statusEl.textContent = 'Сделайте ход';
         return;
       }
       board = data.board || board;
       blocked = new Set(data.blocked || []);
       currentTurn = data.turn || 'w';
       render();
-      statusEl.textContent = currentTurn === 'w' ? 'Ход белых' : 'Ход чёрных';
+      checkGameState();
     });
 
     const controls = document.getElementById('controls');
+    
     if (isHost) {
       const btnSteal = document.createElement('button');
       btnSteal.textContent = '👽 Украсть';
@@ -296,6 +415,80 @@
       btnSteal.onclick = () => {
         statusEl.textContent = 'Нажмите на фигуру ПРОТИВНИКА';
         const handler = (e) => {
+          const idx = parseInt(e.target.dataset.index || e.target.parentNode.dataset.index);
+          if (!isNaN(idx) && board[idx] && board[idx][0] !== 'w') {
+            board[idx] = null;
+            syncToFirebase();
+            render();
+            statusEl.textContent = 'Фигура украдена!';
+          }
+          boardEl.removeEventListener('click', handler);
+        };
+        boardEl.addEventListener('click', handler, { once: true });
+      };
+
+      const btnSpawn = document.createElement('button');
+      btnSpawn.textContent = '♙ Пешка';
+      btnSpawn.style.background = '#27ae60';
+      btnSpawn.style.color = '#fff';
+      btnSpawn.onclick = () => {
+        statusEl.textContent = 'Нажмите на пустую клетку';
+        const handler = (e) => {
+          const idx = parseInt(e.target.dataset.index || e.target.parentNode.dataset.index);
+          if (!isNaN(idx) && !board[idx] && !blocked.has(idx)) {
+            board[idx] = 'wP';
+            syncToFirebase();
+            render();
+            statusEl.textContent = 'Пешка создана!';
+          }
+          boardEl.removeEventListener('click', handler);
+        };
+        boardEl.addEventListener('click', handler, { once: true });
+      };
+
+      const btnBlock = document.createElement('button');
+      btnBlock.textContent = '🚫 Удалить';
+      btnBlock.style.background = '#8e44ad';
+      btnBlock.style.color = '#fff';
+      btnBlock.onclick = () => {
+        statusEl.textContent = 'Нажмите на ЛЮБУЮ фигуру или клетку';
+        const handler = (e) => {
+          const idx = parseInt(e.target.dataset.index || e.target.parentNode.dataset.index);
+          if (!isNaN(idx)) {
+            blocked.add(idx);
+            board[idx] = null;
+            syncToFirebase();
+            render();
+            checkGameState();
+            statusEl.textContent = 'Клетка удалена!';
+          }
+          boardEl.removeEventListener('click', handler);
+        };
+        boardEl.addEventListener('click', handler, { once: true });
+      };
+
+      const btnReset = document.createElement('button');
+      btnReset.textContent = '🔄 Рестарт';
+      btnReset.style.background = '#e67e22';
+      btnReset.style.color = '#fff';
+      btnReset.onclick = () => {
+        startBoard();
+        blocked.clear();
+        selected = null;
+        currentTurn = 'w';
+        syncToFirebase();
+        render();
+        checkGameState();
+      };
+
+      controls.appendChild(btnSteal);
+      controls.appendChild(btnSpawn);
+      controls.appendChild(btnBlock);
+      controls.appendChild(btnReset);
+    }
+  </script>
+</body>
+</html>st handler = (e) => {
           const idx = parseInt(e.target.dataset.index || e.target.parentNode.dataset.index);
           if (!isNaN(idx) && board[idx] && board[idx][0] !== 'w') {
             board[idx] = null;
