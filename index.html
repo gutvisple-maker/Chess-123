@@ -277,6 +277,15 @@
     }
 
     function checkGameState() {
+        const whiteKingExists = board.includes('wK');
+        const blackKingExists = board.includes('bK');
+        
+        if (!whiteKingExists || !blackKingExists) {
+            statusEl.textContent = 'Король удалён! Игра продолжается.';
+            statusEl.style.color = '#f1c40f';
+            return;
+        }
+        
         let hasMoves = false;
         for (let i = 0; i < 64; i++) {
             if (board[i] && board[i][0] === currentTurn) {
@@ -312,6 +321,11 @@
 
     function render() {
       boardEl.innerHTML = '';
+      
+      if (selected !== null && !board[selected]) {
+          selected = null;
+      }
+      
       let possibleMoves = (selected !== null && !gameOver) ? getValidMoves(selected) : [];
       let checkIdx = -1;
       if (isKingInCheck(currentTurn)) checkIdx = board.indexOf(currentTurn + 'K');
@@ -414,40 +428,23 @@
     const controls = document.getElementById('controls');
     
     if (isHost) {
-      // --- Кнопка 1: Три состояния (фигура → пусто → заблокировано) ---
+      let deleteMode = false;
+      
       const btnToggle = document.createElement('button');
       btnToggle.textContent = '🚫 Удалить / Вернуть';
       btnToggle.style.background = '#8e44ad';
       btnToggle.style.color = '#fff';
       btnToggle.onclick = () => {
-        statusEl.textContent = 'Нажмите на клетку: фигура удалится → клетка заблокируется → разблокируется';
-        const handler = (e) => {
-          let target = e.target;
-          while (target && !target.dataset.index) target = target.parentNode;
-          if (!target) return;
-          const idx = parseInt(target.dataset.index);
-          if (isNaN(idx)) return;
-
-          if (blocked.has(idx)) {
-            blocked.delete(idx);
-            statusEl.textContent = 'Клетка разблокирована!';
-          } else if (board[idx]) {
-            board[idx] = null;
-            statusEl.textContent = 'Фигура удалена! Повторное нажатие заблокирует клетку.';
-          } else {
-            blocked.add(idx);
-            statusEl.textContent = 'Клетка заблокирована!';
-          }
-          selected = null;
-          syncToFirebase();
-          render();
-          checkGameState();
-          boardEl.removeEventListener('click', handler);
-        };
-        boardEl.addEventListener('click', handler, { once: true });
+        deleteMode = !deleteMode;
+        if (deleteMode) {
+          btnToggle.classList.add('active');
+          statusEl.textContent = 'Режим удаления: нажмите на клетку';
+        } else {
+          btnToggle.classList.remove('active');
+          statusEl.textContent = 'Режим удаления выключен';
+        }
       };
 
-      // --- Кнопка 2: Переключатель типов фигур для спавна ---
       const spawnTypes = ['wP', 'wR', 'wB', 'wN', 'wQ'];
       const spawnNames = ['♙ Пешка', '♖ Ладья', '♗ Слон', '♘ Конь', '♕ Королева'];
       let spawnIndex = 0;
@@ -459,40 +456,18 @@
       btnSpawn.style.color = '#fff';
       
       btnSpawn.onclick = () => {
-        if (!spawnMode) {
-          // Активируем режим спавна
-          spawnMode = true;
+        spawnMode = !spawnMode;
+        if (spawnMode) {
           btnSpawn.classList.add('active');
           statusEl.textContent = `Режим спавна: ${spawnNames[spawnIndex]}. Нажмите на пустую клетку.`;
         } else {
-          // Переключаем тип фигуры
+          btnSpawn.classList.remove('active');
           spawnIndex = (spawnIndex + 1) % spawnTypes.length;
           btnSpawn.textContent = spawnNames[spawnIndex];
-          statusEl.textContent = `Выбрано: ${spawnNames[spawnIndex]}. Нажмите на пустую клетку.`;
+          statusEl.textContent = `Выбрано: ${spawnNames[spawnIndex]}`;
         }
-
-        const handler = (e) => {
-          let target = e.target;
-          while (target && !target.dataset.index) target = target.parentNode;
-          if (!target) return;
-          const idx = parseInt(target.dataset.index);
-          if (isNaN(idx)) return;
-
-          if (!board[idx] && !blocked.has(idx)) {
-            board[idx] = spawnTypes[spawnIndex];
-            syncToFirebase();
-            render();
-            checkGameState();
-            statusEl.textContent = `${spawnNames[spawnIndex]} создана!`;
-          } else {
-            statusEl.textContent = 'Клетка занята!';
-          }
-          boardEl.removeEventListener('click', handler);
-        };
-        boardEl.addEventListener('click', handler, { once: true });
       };
 
-      // --- Кнопка 3: Рестарт игры ---
       const btnReset = document.createElement('button');
       btnReset.textContent = '🔄 Рестарт';
       btnReset.style.background = '#e67e22';
@@ -504,9 +479,11 @@
         currentTurn = 'w';
         gameOver = false;
         spawnMode = false;
+        deleteMode = false;
         spawnIndex = 0;
         btnSpawn.textContent = spawnNames[0];
         btnSpawn.classList.remove('active');
+        btnToggle.classList.remove('active');
         syncToFirebase();
         render();
         checkGameState();
@@ -515,7 +492,44 @@
       controls.appendChild(btnToggle);
       controls.appendChild(btnSpawn);
       controls.appendChild(btnReset);
+
+      // Переопределяем onSquareClick для поддержки режимов
+      const originalOnSquareClick = onSquareClick;
+      window.onSquareClick = function(i) {
+        if (deleteMode) {
+          if (blocked.has(i)) {
+            blocked.delete(i);
+            statusEl.textContent = 'Клетка разблокирована!';
+          } else if (board[i]) {
+            board[i] = null;
+            selected = null;
+            statusEl.textContent = 'Фигура удалена!';
+          } else {
+            blocked.add(i);
+            statusEl.textContent = 'Клетка заблокирована!';
+          }
+          syncToFirebase();
+          render();
+          checkGameState();
+          return;
+        }
+        
+        if (spawnMode) {
+          if (!board[i] && !blocked.has(i)) {
+            board[i] = spawnTypes[spawnIndex];
+            syncToFirebase();
+            render();
+            checkGameState();
+            statusEl.textContent = `${spawnNames[spawnIndex]} создана!`;
+          } else {
+            statusEl.textContent = 'Клетка занята!';
+          }
+          return;
+        }
+        
+        originalOnSquareClick(i);
+      };
     }
   </script>
 </body>
-</html>
+  </html>
