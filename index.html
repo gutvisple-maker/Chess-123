@@ -16,7 +16,10 @@ body{font-family:sans-serif;background:#1a1a1a;color:#eee;margin:0;padding:0;dis
 .blocked{background:#222!important;cursor:not-allowed;border:1px solid #000}
 .piece-img{width:90%;height:90%;object-fit:contain;pointer-events:none;display:block}
 .controls-wrapper{width:100%;max-width:400px;border-top:3px solid #555;border-radius:0 0 12px 12px;padding:10px;background:#2c2c2c;display:flex;flex-direction:column;gap:8px}
-.status-bar{text-align:center;font-size:16px;font-weight:bold;color:#fff;padding:7px;background:#333;border-radius:6px;min-height:22px}
+.status-bar{display:flex;gap:6px;width:100%}
+.status-game,.status-tech{flex:1;text-align:center;font-size:14px;font-weight:bold;padding:7px;background:#333;border-radius:6px;min-height:22px;display:flex;align-items:center;justify-content:center;word-break:break-word}
+.status-game{color:#fff}
+.status-tech{color:#f1c40f}
 .btn-row{display:flex;gap:6px;width:100%}
 button{flex:1;padding:10px 6px;font-size:12px;border:none;border-radius:8px;cursor:pointer;font-weight:bold;transition:transform .1s}
 button:active{transform:scale(.95)}
@@ -33,12 +36,23 @@ button.active{outline:3px solid #f1c40f;box-shadow:0 0 10px rgba(241,196,15,.5)}
 .selected{box-shadow:inset 0 0 0 4px #e74c3c}
 .move-dot{width:20%;height:20%;background:rgba(46,204,113,.7);border-radius:50%;position:absolute;pointer-events:none}
 .check{background:#e74c3c!important}
+.modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:1000;align-items:center;justify-content:center}
+.modal-overlay.visible{display:flex}
+.modal-box{background:#333;border-radius:12px;padding:20px;max-width:300px;width:90%;text-align:center}
+.modal-box p{margin:0 0 15px;font-size:16px}
+.modal-btns{display:flex;gap:10px;justify-content:center}
+.modal-btns button{padding:10px 20px;font-size:14px}
+.btn-cancel{background:#555;color:#fff}
+.btn-ok{background:#e74c3c;color:#fff}
 </style>
 </head>
 <body>
 <div class="board-container"><div id="board"></div></div>
 <div class="controls-wrapper">
-<div id="status" class="status-bar">Загрузка...</div>
+<div class="status-bar">
+<div id="statusGame" class="status-game">Загрузка...</div>
+<div id="statusTech" class="status-tech"></div>
+</div>
 <div class="btn-row">
 <button id="btnDel" class="btn-del" style="display:none">🚫 Удалить</button>
 <button id="btnSide" class="btn-side" style="display:none">🔄 Сторона: Белые</button>
@@ -47,6 +61,15 @@ button.active{outline:3px solid #f1c40f;box-shadow:0 0 10px rgba(241,196,15,.5)}
 <div id="spawnPanel" class="spawn-panel">
 <div class="spawn-row" id="spawnWhite"></div>
 <div class="spawn-row" id="spawnBlack"></div>
+</div>
+</div>
+<div id="modalOverlay" class="modal-overlay">
+<div class="modal-box">
+<p id="modalText">Сбросить игру?</p>
+<div class="modal-btns">
+<button class="btn-cancel" id="modalCancel">Отмена</button>
+<button class="btn-ok" id="modalOk">ОК</button>
+</div>
 </div>
 </div>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -75,34 +98,48 @@ else if(t==='K'){for(const[dr,dc]of[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1
 return m}
 function isKingInCheck(color,tb=board){const ki=[];for(let i=0;i<64;i++)if(tb[i]===color+'K')ki.push(i);if(!ki.length)return false;for(const k of ki)for(let i=0;i<64;i++){if(tb[i]&&tb[i][0]!==color&&getRawMoves(i,tb).includes(k))return true}return false}
 function getValidMoves(index){const rm=getRawMoves(index),vm=[],p=board[index];if(!p)return[];const col=p[0];for(const mv of rm){const tb=[...board];tb[mv]=p;tb[index]=null;if(p==='wP'&&Math.floor(mv/8)===0)tb[mv]='wQ';if(p==='bP'&&Math.floor(mv/8)===7)tb[mv]='bQ';if(!isKingInCheck(col,tb))vm.push(mv)}return vm}
-function updateStatus(){const s=document.getElementById('status');const wk=board.filter(p=>p==='wK').length,bk=board.filter(p=>p==='bK').length;if(!wk||!bk||wk>1||bk>1){s.textContent=currentTurn==='w'?'Ход белых':'Ход чёрных';s.style.color='#fff';return}let hm=false;for(let i=0;i<64;i++)if(board[i]&&board[i][0]===currentTurn&&getValidMoves(i).length>0){hm=true;break}const chk=isKingInCheck(currentTurn);if(!hm){gameOver=true;if(chk){s.textContent=`МАТ! Победили ${currentTurn==='w'?'чёрные':'белые'}!`;s.style.color='#e74c3c'}else{s.textContent='ПАТ! Ничья.';s.style.color='#f1c40f'}}else if(chk){s.textContent='ШАХ!';s.style.color='#e74c3c'}else{s.textContent=currentTurn==='w'?'Ход белых':'Ход чёрных';s.style.color='#fff'}}
+const statusGameEl=document.getElementById('statusGame'),statusTechEl=document.getElementById('statusTech');
+function setTechMsg(msg){statusTechEl.textContent=msg;setTimeout(()=>{if(statusTechEl.textContent===msg)statusTechEl.textContent=''},3000)}
+function updateStatus(){const wk=board.filter(p=>p==='wK').length,bk=board.filter(p=>p==='bK').length;if(!wk||!bk||wk>1||bk>1){statusGameEl.textContent=currentTurn==='w'?'Ход белых':'Ход чёрных';statusGameEl.style.color='#fff';return}let hm=false;for(let i=0;i<64;i++)if(board[i]&&board[i][0]===currentTurn&&getValidMoves(i).length>0){hm=true;break}const chk=isKingInCheck(currentTurn);if(!hm){gameOver=true;if(chk){statusGameEl.textContent=`МАТ! ${currentTurn==='w'?'чёрные':'белые'} победили!`;statusGameEl.style.color='#e74c3c'}else{statusGameEl.textContent='ПАТ! Ничья.';statusGameEl.style.color='#f1c40f'}}else if(chk){statusGameEl.textContent='ШАХ!';statusGameEl.style.color='#e74c3c'}else{statusGameEl.textContent=currentTurn==='w'?'Ход белых':'Ход чёрных';statusGameEl.style.color='#fff'}}
 const boardEl=document.getElementById('board');
 function updateBoardOrientation(){if(myColor==='b')boardEl.classList.add('flipped');else boardEl.classList.remove('flipped')}
 function render(){boardEl.innerHTML='';if(selected!==null&&!board[selected])selected=null;const pm=(selected!==null&&!gameOver&&!deleteMode&&!spawnMode)?getValidMoves(selected):[];let ci=-1;const kt=[];for(let i=0;i<64;i++)if(board[i]===currentTurn+'K')kt.push(i);if(kt.length===1&&isKingInCheck(currentTurn))ci=kt[0];
 for(let i=0;i<64;i++){const sq=document.createElement('div'),r=Math.floor(i/8),c=i%8;sq.className='square '+((r+c)%2===0?'light':'dark');if(blocked.has(i))sq.classList.add('blocked');if(selected===i)sq.classList.add('selected');if(i===ci)sq.classList.add('check');if(pm.includes(i)){const d=document.createElement('div');d.className='move-dot';sq.appendChild(d)}
 if(board[i]){const im=document.createElement('img');im.src=croppedImages[board[i]]||pieceFiles[board[i]];im.className='piece-img';sq.appendChild(im)}
 sq.dataset.index=i;sq.addEventListener('click',()=>onSquareClick(i));boardEl.appendChild(sq)}}
-function onSquareClick(i){const s=document.getElementById('status');
-if(deleteMode&&isHost){if(blocked.has(i)){blocked.delete(i);s.textContent='Клетка разблокирована!'}else if(board[i]){board[i]=null;selected=null;s.textContent='Фигура удалена!'}else{blocked.add(i);s.textContent='Клетка заблокирована!'}gameOver=false;syncToFirebase();render();updateStatus();return}
-if(spawnMode&&isHost){if(blocked.has(i)){s.textContent='Клетка заблокирована!';return}board[i]=spawnMode;gameOver=false;syncToFirebase();render();updateStatus();s.textContent='Поставлено!';return}
+function canSelectPiece(p){
+    if(!p)return false;
+    if(p[0]!==currentTurn)return false;
+    if(isHost)return true;
+    return p[0]===myColor;
+}
+function onSquareClick(i){
+if(deleteMode&&isHost){if(blocked.has(i)){blocked.delete(i);setTechMsg('Клетка разблокирована')}else if(board[i]){board[i]=null;selected=null;setTechMsg('Фигура удалена')}else{blocked.add(i);setTechMsg('Клетка заблокирована')}gameOver=false;syncToFirebase();render();updateStatus();return}
+if(spawnMode&&isHost){if(blocked.has(i)){setTechMsg('Клетка заблокирована!');return}board[i]=spawnMode;gameOver=false;syncToFirebase();render();updateStatus();setTechMsg('Фигура поставлена');return}
 if(gameOver)return;const p=board[i];
-if(selected===null){if(p&&p[0]===myColor&&p[0]===currentTurn){selected=i;render()}}else{if(i===selected){selected=null;render();return}const sp=board[selected],vm=getValidMoves(selected);
-if(vm.includes(i)){board[i]=sp;board[selected]=null;if(sp==='wP'&&Math.floor(i/8)===0)board[i]='wQ';if(sp==='bP'&&Math.floor(i/8)===7)board[i]='bQ';selected=null;currentTurn=currentTurn==='w'?'b':'w';syncToFirebase();render();updateStatus()}else{if(p&&p[0]===myColor&&p[0]===currentTurn){selected=i;render()}else{selected=null;render()}}}}
+if(selected===null){if(canSelectPiece(p)){selected=i;render()}}else{if(i===selected){selected=null;render();return}const sp=board[selected],vm=getValidMoves(selected);
+if(vm.includes(i)){board[i]=sp;board[selected]=null;if(sp==='wP'&&Math.floor(i/8)===0)board[i]='wQ';if(sp==='bP'&&Math.floor(i/8)===7)board[i]='bQ';selected=null;currentTurn=currentTurn==='w'?'b':'w';syncToFirebase();render();updateStatus()}else{if(canSelectPiece(p)){selected=i;render()}else{selected=null;render()}}}}
 const roomRef=db.ref('rooms/default');
 function syncToFirebase(){roomRef.set({board:board,blocked:Array.from(blocked),turn:currentTurn,hostColor:myColor,updated:Date.now()})}
-roomRef.on('value',snap=>{const d=snap.val();if(!d){document.getElementById('status').textContent='Сделайте ход';return}if(d.board)board=Array.from({length:64},(_,i)=>d.board[i]||null);blocked=new Set(d.blocked||[]);currentTurn=d.turn||'w';
+roomRef.on('value',snap=>{const d=snap.val();if(!d){statusGameEl.textContent='Сделайте ход';return}if(d.board)board=Array.from({length:64},(_,i)=>d.board[i]||null);blocked=new Set(d.blocked||[]);currentTurn=d.turn||'w';
 if(!isHost&&d.hostColor){myColor=d.hostColor==='w'?'b':'w'}
 updateBoardOrientation();
 if(isHost)updateSideButton();render();updateStatus()});
-const btnDel=document.getElementById('btnDel'),btnSide=document.getElementById('btnSide'),btnReset=document.getElementById('btnReset'),spawnPanel=document.getElementById('spawnPanel'),statusEl=document.getElementById('status');
+const btnDel=document.getElementById('btnDel'),btnSide=document.getElementById('btnSide'),btnReset=document.getElementById('btnReset'),spawnPanel=document.getElementById('spawnPanel');
 function updateSideButton(){btnSide.textContent=myColor==='w'?'🔄 Сторона: Белые':'🔄 Сторона: Чёрные'}
 updateSideButton();
 function buildSpawnPanel(){const wr=document.getElementById('spawnWhite'),br=document.getElementById('spawnBlack');wr.innerHTML='';br.innerHTML='';pieceOrder.forEach(t=>{const wk='w'+t,bk='b'+t;const wb=document.createElement('div');wb.className='spawn-btn';wb.dataset.piece=wk;const wi=document.createElement('img');wi.src=croppedImages[wk]||pieceFiles[wk];wb.appendChild(wi);wb.onclick=()=>selectSpawn(wk);wr.appendChild(wb);const bb=document.createElement('div');bb.className='spawn-btn';bb.dataset.piece=bk;const bi=document.createElement('img');bi.src=croppedImages[bk]||pieceFiles[bk];bb.appendChild(bi);bb.onclick=()=>selectSpawn(bk);br.appendChild(bb)})}
-function selectSpawn(pk){document.querySelectorAll('.spawn-btn').forEach(b=>b.classList.remove('active'));if(spawnMode===pk){spawnMode=null;deleteMode=false;btnDel.classList.remove('active');statusEl.textContent='Режим спавна выключен'}else{spawnMode=pk;deleteMode=false;btnDel.classList.remove('active');const el=document.querySelector(`.spawn-btn[data-piece="${pk}"]`);if(el)el.classList.add('active');statusEl.textContent='Спавн выбран. Нажмите на клетку.'}render()}
+function selectSpawn(pk){document.querySelectorAll('.spawn-btn').forEach(b=>b.classList.remove('active'));if(spawnMode===pk){spawnMode=null;deleteMode=false;btnDel.classList.remove('active');setTechMsg('Спавн выключен')}else{spawnMode=pk;deleteMode=false;btnDel.classList.remove('active');const el=document.querySelector(`.spawn-btn[data-piece="${pk}"]`);if(el)el.classList.add('active');setTechMsg('Выберите клетку')}render()}
+const modalOverlay=document.getElementById('modalOverlay'),modalText=document.getElementById('modalText'),modalCancel=document.getElementById('modalCancel'),modalOk=document.getElementById('modalOk');
+let modalCallback=null;
+function showModal(text,cb){modalText.textContent=text;modalCallback=cb;modalOverlay.classList.add('visible')}
+function hideModal(){modalOverlay.classList.remove('visible');modalCallback=null}
+modalCancel.onclick=hideModal;
+modalOk.onclick=()=>{if(modalCallback)modalCallback();hideModal()};
 if(isHost){btnDel.style.display='block';btnSide.style.display='block';btnReset.style.display='block';spawnPanel.classList.add('visible');
-btnDel.onclick=()=>{deleteMode=!deleteMode;spawnMode=null;document.querySelectorAll('.spawn-btn').forEach(b=>b.classList.remove('active'));btnDel.classList.toggle('active',deleteMode);statusEl.textContent=deleteMode?'Режим удаления: нажмите на фигуру/клетку':'Режим удаления выключен';if(deleteMode)selected=null;render()};
-btnSide.onclick=()=>{myColor=myColor==='w'?'b':'w';selected=null;updateSideButton();updateBoardOrientation();statusEl.textContent=`Теперь вы играете за ${myColor==='w'?'белых':'чёрных'}`;syncToFirebase();render()};
-btnReset.onclick=()=>{if(!confirm('Сбросить игру?'))return;startBoard();blocked.clear();selected=null;currentTurn='w';gameOver=false;deleteMode=false;spawnMode=null;btnDel.classList.remove('active');document.querySelectorAll('.spawn-btn').forEach(b=>b.classList.remove('active'));syncToFirebase();render();updateStatus()}}
+btnDel.onclick=()=>{deleteMode=!deleteMode;spawnMode=null;document.querySelectorAll('.spawn-btn').forEach(b=>b.classList.remove('active'));btnDel.classList.toggle('active',deleteMode);setTechMsg(deleteMode?'Режим удаления':'Выключено');if(deleteMode)selected=null;render()};
+btnSide.onclick=()=>{myColor=myColor==='w'?'b':'w';selected=null;updateSideButton();updateBoardOrientation();setTechMsg(`Теперь вы за ${myColor==='w'?'белых':'чёрных'}`);syncToFirebase();render()};
+btnReset.onclick=()=>showModal('Сбросить игру?',()=>{startBoard();blocked.clear();selected=null;currentTurn='w';gameOver=false;deleteMode=false;spawnMode=null;btnDel.classList.remove('active');document.querySelectorAll('.spawn-btn').forEach(b=>b.classList.remove('active'));syncToFirebase();render();updateStatus();setTechMsg('Игра сброшена')})}
 </script>
 </body>
 </html>
