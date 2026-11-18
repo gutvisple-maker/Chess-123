@@ -54,7 +54,7 @@
 <body>
   <div id="board"></div>
   <div id="controls"></div>
-  <div id="status">Подключение к базе...</div>
+  <div id="status">Загрузка...</div>
 
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -103,64 +103,72 @@
         'bK': 'black_king.png'
     };
 
-    // --- МАГИЯ: Автоматическая обрезка прозрачных краев картинок ---
     const croppedImages = {};
 
     function cropImage(src, callback) {
         const img = new Image();
-        img.crossOrigin = "Anonymous"; // Важно для GitHub Pages
+        img.crossOrigin = "Anonymous"; 
+        
         img.onload = () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = img.width;
-            canvas.height = img.height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0);
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
 
-            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const data = imgData.data;
-            let top = canvas.height, left = canvas.width, right = 0, bottom = 0;
+                const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imgData.data;
+                let top = canvas.height, left = canvas.width, right = 0, bottom = 0;
 
-            // Ищем, где начинаются и заканчиваются непрозрачные пиксели
-            for (let y = 0; y < canvas.height; y++) {
-                for (let x = 0; x < canvas.width; x++) {
-                    const alpha = data[(y * canvas.width + x) * 4 + 3];
-                    if (alpha > 10) { // Если пиксель не прозрачный
-                        if (x < left) left = x;
-                        if (x > right) right = x;
-                        if (y < top) top = y;
-                        if (y > bottom) bottom = y;
+                for (let y = 0; y < canvas.height; y++) {
+                    for (let x = 0; x < canvas.width; x++) {
+                        const alpha = data[(y * canvas.width + x) * 4 + 3];
+                        if (alpha > 10) { 
+                            if (x < left) left = x;
+                            if (x > right) right = x;
+                            if (y < top) top = y;
+                            if (y > bottom) bottom = y;
+                        }
                     }
                 }
-            }
 
-            // Обрезаем и возвращаем новый DataURL
-            if (right >= left && bottom >= top) {
-                const croppedCanvas = document.createElement('canvas');
-                croppedCanvas.width = right - left + 1;
-                croppedCanvas.height = bottom - top + 1;
-                croppedCanvas.getContext('2d').drawImage(canvas, left, top, croppedCanvas.width, croppedCanvas.height, 0, 0, croppedCanvas.width, croppedCanvas.height);
-                callback(croppedCanvas.toDataURL());
-            } else {
-                callback(src); // Если пусто, возвращаем как есть
+                if (right >= left && bottom >= top) {
+                    const croppedCanvas = document.createElement('canvas');
+                    croppedCanvas.width = right - left + 1;
+                    croppedCanvas.height = bottom - top + 1;
+                    croppedCanvas.getContext('2d').drawImage(canvas, left, top, croppedCanvas.width, croppedCanvas.height, 0, 0, croppedCanvas.width, croppedCanvas.height);
+                    callback(croppedCanvas.toDataURL());
+                } else {
+                    callback(src); 
+                }
+            } catch (error) {
+                console.warn("CORS защита при обрезке, используется оригинал:", src);
+                callback(src);
             }
         };
+        
+        img.onerror = () => {
+            console.warn("Не удалось загрузить картинку, используется оригинальный путь:", src);
+            callback(src);
+        };
+        
         img.src = src;
     }
 
     let loadedCount = 0;
     const totalImages = Object.keys(pieceFiles).length;
 
-    // Загружаем и обрезаем все картинки перед стартом игры
     for (const key in pieceFiles) {
         cropImage(pieceFiles[key], (croppedData) => {
             croppedImages[key] = croppedData;
             loadedCount++;
             if (loadedCount === totalImages) {
-                render(); // Когда все обрезаны, запускаем игру
+                render(); 
+                document.getElementById('status').textContent = 'Сделайте ход';
             }
         });
     }
-    // -----------------------------------------------------------
 
     const isValid = (r, c) => r >= 0 && r < 8 && c >= 0 && c < 8;
 
@@ -325,13 +333,9 @@
 
         if (board[i]) {
             const img = document.createElement('img');
-            // Используем обрезанную картинку
             img.src = croppedImages[board[i]] || pieceFiles[board[i]];
             img.className = 'piece-img'; 
-            
-            // Добавляем небольшой отступ, чтобы обрезанные фигуры не прилипали
             img.style.padding = '5%';
-            
             sq.appendChild(img);
         }
         
