@@ -414,13 +414,13 @@
     const controls = document.getElementById('controls');
     
     if (isHost) {
-      // --- Кнопка 1: Удалить фигуру / клетку (тоггл) ---
+      // --- Кнопка 1: Три состояния (фигура → пусто → заблокировано) ---
       const btnToggle = document.createElement('button');
       btnToggle.textContent = '🚫 Удалить / Вернуть';
       btnToggle.style.background = '#8e44ad';
       btnToggle.style.color = '#fff';
       btnToggle.onclick = () => {
-        statusEl.textContent = 'Нажмите на клетку (удалит фигуру или вернёт клетку)';
+        statusEl.textContent = 'Нажмите на клетку: фигура удалится → клетка заблокируется → разблокируется';
         const handler = (e) => {
           let target = e.target;
           while (target && !target.dataset.index) target = target.parentNode;
@@ -429,14 +429,14 @@
           if (isNaN(idx)) return;
 
           if (blocked.has(idx)) {
-            // Возвращаем клетку
             blocked.delete(idx);
-            statusEl.textContent = 'Клетка возвращена!';
-          } else {
-            // Блокируем клетку и удаляем фигуру (любую, даже свою)
-            blocked.add(idx);
+            statusEl.textContent = 'Клетка разблокирована!';
+          } else if (board[idx]) {
             board[idx] = null;
-            statusEl.textContent = 'Клетка удалена!';
+            statusEl.textContent = 'Фигура удалена! Повторное нажатие заблокирует клетку.';
+          } else {
+            blocked.add(idx);
+            statusEl.textContent = 'Клетка заблокирована!';
           }
           selected = null;
           syncToFirebase();
@@ -447,13 +447,30 @@
         boardEl.addEventListener('click', handler, { once: true });
       };
 
-      // --- Кнопка 2: Спавн пешки ---
+      // --- Кнопка 2: Переключатель типов фигур для спавна ---
+      const spawnTypes = ['wP', 'wR', 'wB', 'wN', 'wQ'];
+      const spawnNames = ['♙ Пешка', '♖ Ладья', '♗ Слон', '♘ Конь', '♕ Королева'];
+      let spawnIndex = 0;
+      let spawnMode = false;
+
       const btnSpawn = document.createElement('button');
-      btnSpawn.textContent = '♙ Пешка';
+      btnSpawn.textContent = spawnNames[spawnIndex];
       btnSpawn.style.background = '#27ae60';
       btnSpawn.style.color = '#fff';
+      
       btnSpawn.onclick = () => {
-        statusEl.textContent = 'Нажмите на пустую клетку для спавна пешки';
+        if (!spawnMode) {
+          // Активируем режим спавна
+          spawnMode = true;
+          btnSpawn.classList.add('active');
+          statusEl.textContent = `Режим спавна: ${spawnNames[spawnIndex]}. Нажмите на пустую клетку.`;
+        } else {
+          // Переключаем тип фигуры
+          spawnIndex = (spawnIndex + 1) % spawnTypes.length;
+          btnSpawn.textContent = spawnNames[spawnIndex];
+          statusEl.textContent = `Выбрано: ${spawnNames[spawnIndex]}. Нажмите на пустую клетку.`;
+        }
+
         const handler = (e) => {
           let target = e.target;
           while (target && !target.dataset.index) target = target.parentNode;
@@ -462,11 +479,11 @@
           if (isNaN(idx)) return;
 
           if (!board[idx] && !blocked.has(idx)) {
-            board[idx] = 'wP';
+            board[idx] = spawnTypes[spawnIndex];
             syncToFirebase();
             render();
             checkGameState();
-            statusEl.textContent = 'Пешка создана!';
+            statusEl.textContent = `${spawnNames[spawnIndex]} создана!`;
           } else {
             statusEl.textContent = 'Клетка занята!';
           }
@@ -486,6 +503,10 @@
         selected = null;
         currentTurn = 'w';
         gameOver = false;
+        spawnMode = false;
+        spawnIndex = 0;
+        btnSpawn.textContent = spawnNames[0];
+        btnSpawn.classList.remove('active');
         syncToFirebase();
         render();
         checkGameState();
