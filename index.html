@@ -6,21 +6,35 @@
   <title>Шахматы</title>
   <style>
     * { box-sizing: border-box; }
-    body { font-family: sans-serif; background: #222; color: #eee; margin: 0; padding: 16px; display: flex; flex-direction: column; align-items: center; }
+    body { 
+      font-family: sans-serif; 
+      background: #1a1a1a; 
+      color: #eee; 
+      margin: 0; 
+      padding: 10px; 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      min-height: 100vh;
+    }
     
+    .board-container {
+        width: 100%;
+        max-width: 400px;
+        margin-bottom: 15px;
+    }
+
     #board { 
       display: grid; 
-      grid-template-columns: repeat(8, 42px); 
-      grid-template-rows: repeat(8, 42px);    
-      width: 336px;  
-      height: 336px; 
-      border: 2px solid #444;
-      margin: 0 auto;
+      grid-template-columns: repeat(8, 1fr); 
+      grid-template-rows: repeat(8, 1fr);    
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      border: 4px solid #444;
+      background: #333;
     }
     
     .square { 
-      width: 42px;
-      height: 42px;
       display: flex; 
       align-items: center; 
       justify-content: center; 
@@ -32,30 +46,82 @@
     
     .light { background: #f0d9b5; }
     .dark { background: #b58863; }
-    .blocked { background: #444 !important; cursor: not-allowed; border: 1px solid #222; }
+    .blocked { background: #222 !important; cursor: not-allowed; border: 1px solid #000; }
     
     .piece-img { 
-      width: 100%;   
-      height: 100%;  
+      width: 90%;   
+      height: 90%;  
       object-fit: contain; 
       pointer-events: none; 
       display: block;
     }
 
-    #controls { width: 336px; display: flex; gap: 6px; flex-wrap: wrap; margin-top: 16px; }
-    button { flex: 1; padding: 10px; font-size: 13px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
-    button.active { outline: 3px solid #f1c40f; }
-    #status { text-align: center; margin-top: 12px; font-size: 16px; color: #fff; min-height: 24px; font-weight: bold; }
-    
+    .controls-wrapper {
+        width: 100%;
+        max-width: 400px;
+        border: 3px solid #555;
+        border-radius: 12px;
+        padding: 15px;
+        background: #2c2c2c;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .status-bar {
+        text-align: center;
+        font-size: 17px;
+        font-weight: bold;
+        color: #fff;
+        padding: 8px;
+        background: #333;
+        border-radius: 6px;
+        min-height: 24px;
+    }
+
+    .btn-row {
+        display: flex;
+        gap: 8px;
+        width: 100%;
+    }
+
+    button { 
+      flex: 1; 
+      padding: 12px 8px; 
+      font-size: 13px; 
+      border: none; 
+      border-radius: 8px; 
+      cursor: pointer; 
+      font-weight: bold; 
+      transition: transform 0.1s;
+    }
+    button:active { transform: scale(0.95); }
+    button.active { outline: 3px solid #f1c40f; box-shadow: 0 0 10px rgba(241, 196, 15, 0.5); }
+
+    .btn-del { background: #8e44ad; color: #fff; }
+    .btn-side { background: #2980b9; color: #fff; }
+    .btn-reset { background: #e67e22; color: #fff; }
+
     .selected { box-shadow: inset 0 0 0 4px #e74c3c; }
-    .move-dot { width: 16px; height: 16px; background: rgba(46, 204, 113, 0.6); border-radius: 50%; position: absolute; pointer-events: none; }
-    .check { background: #e74c3c !important; color: white; }
+    .move-dot { width: 20%; height: 20%; background: rgba(46, 204, 113, 0.7); border-radius: 50%; position: absolute; pointer-events: none; }
+    .check { background: #e74c3c !important; }
   </style>
 </head>
 <body>
-  <div id="board"></div>
-  <div id="controls"></div>
-  <div id="status">Загрузка...</div>
+
+  <div class="board-container">
+    <div id="board"></div>
+  </div>
+
+  <div class="controls-wrapper">
+    <div id="status" class="status-bar">Загрузка...</div>
+    
+    <div class="btn-row">
+        <button id="btnDel" class="btn-del" style="display:none;">🚫 Удалить</button>
+        <button id="btnSide" class="btn-side">🔄 Сторона: Белые</button>
+        <button id="btnReset" class="btn-reset" style="display:none;">🔄 Рестарт</button>
+    </div>
+  </div>
 
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -82,12 +148,12 @@
     let selected = null;
     let currentTurn = 'w'; 
     let gameOver = false;
+    
+    // За какого цвета играет текущий игрок
+    let myColor = isHost ? 'w' : 'b';
 
+    // Режим удаления (только для хоста)
     let deleteMode = false;
-    let spawnMode = false;
-    const spawnTypes = ['wP', 'wR', 'wB', 'wN', 'wQ'];
-    const spawnNames = ['♙ Пешка', '♖ Ладья', '♗ Слон', '♘ Конь', '♕ Королева'];
-    let spawnIndex = 0;
 
     const startBoard = () => {
       board = Array(64).fill(null);
@@ -153,16 +219,11 @@
                     callback(src); 
                 }
             } catch (error) {
-                console.warn("CORS ошибка, используется оригинал:", src);
                 callback(src);
             }
         };
         
-        img.onerror = () => {
-            console.warn("Не удалось загрузить:", src);
-            callback(src);
-        };
-        
+        img.onerror = () => callback(src);
         img.src = src;
     }
 
@@ -173,25 +234,23 @@
             if (loadedCount === totalImages && !renderCalled) {
                 renderCalled = true;
                 render(); 
-                document.getElementById('status').textContent = 'Сделайте ход';
+                updateStatus();
             }
         });
     }
 
-    // ПРИНУДИТЕЛЬНЫЙ ЗАПУСК через 3 секунды, если картинки не загрузились
     setTimeout(() => {
         if (!renderCalled) {
             renderCalled = true;
-            console.warn("Принудительный запуск через 3 секунды");
             render();
-            document.getElementById('status').textContent = 'Сделайте ход';
+            updateStatus();
         }
     }, 3000);
 
     const isValid = (r, c) => r >= 0 && r < 8 && c >= 0 && c < 8;
 
-    function getRawMoves(index) {
-      const piece = board[index];
+    function getRawMoves(index, tempBoard = board) {
+      const piece = tempBoard[index];
       if (!piece) return [];
       const color = piece[0];
       const type = piece[1];
@@ -203,7 +262,7 @@
         if (!isValid(r, c)) return false;
         const targetIdx = r * 8 + c;
         if (blocked.has(targetIdx)) return false;
-        const targetPiece = board[targetIdx];
+        const targetPiece = tempBoard[targetIdx];
         if (targetPiece && targetPiece[0] === color) return false;
         moves.push(targetIdx);
         return !targetPiece;
@@ -212,9 +271,9 @@
       if (type === 'P') {
         const dir = color === 'w' ? -1 : 1;
         const startRow = color === 'w' ? 6 : 1;
-        if (isValid(row + dir, col) && !board[(row + dir) * 8 + col] && !blocked.has((row + dir) * 8 + col)) {
+        if (isValid(row + dir, col) && !tempBoard[(row + dir) * 8 + col] && !blocked.has((row + dir) * 8 + col)) {
           moves.push((row + dir) * 8 + col);
-          if (row === startRow && !board[(row + 2 * dir) * 8 + col] && !blocked.has((row + 2 * dir) * 8 + col)) {
+          if (row === startRow && !tempBoard[(row + 2 * dir) * 8 + col] && !blocked.has((row + 2 * dir) * 8 + col)) {
             moves.push((row + 2 * dir) * 8 + col);
           }
         }
@@ -222,7 +281,7 @@
           const nr = row + dir, nc = col + dc;
           if (isValid(nr, nc)) {
             const tIdx = nr * 8 + nc;
-            const tPiece = board[tIdx];
+            const tPiece = tempBoard[tIdx];
             if (tPiece && tPiece[0] !== color && !blocked.has(tIdx)) moves.push(tIdx);
           }
         }
@@ -254,21 +313,22 @@
       return moves;
     }
 
+    // Проверяем, находится ли ХОТЯ БЫ ОДИН король этого цвета под шахом
     function isKingInCheck(color, tempBoard = board) {
-        let kingIdx = tempBoard.indexOf(color + 'K');
-        if (kingIdx === -1) return false;
-        const originalBoard = board;
-        board = tempBoard; 
+        const kingIndices = [];
         for (let i = 0; i < 64; i++) {
-            if (board[i] && board[i][0] !== color) {
-                let moves = getRawMoves(i);
-                if (moves.includes(kingIdx)) {
-                    board = originalBoard;
-                    return true;
+            if (tempBoard[i] === color + 'K') kingIndices.push(i);
+        }
+        if (kingIndices.length === 0) return false; // Короля нет — шаха нет
+        
+        for (const kingIdx of kingIndices) {
+            for (let i = 0; i < 64; i++) {
+                if (tempBoard[i] && tempBoard[i][0] !== color) {
+                    const moves = getRawMoves(i, tempBoard);
+                    if (moves.includes(kingIdx)) return true;
                 }
             }
         }
-        board = originalBoard;
         return false;
     }
 
@@ -293,13 +353,17 @@
         return validMoves;
     }
 
-    function checkGameState() {
-        const whiteKingExists = board.includes('wK');
-        const blackKingExists = board.includes('bK');
+    function updateStatus() {
+        const statusEl = document.getElementById('status');
         
-        if (!whiteKingExists || !blackKingExists) {
-            statusEl.textContent = 'Король удалён! Игра продолжается.';
-            statusEl.style.color = '#f1c40f';
+        // Считаем королей
+        const whiteKings = board.filter(p => p === 'wK').length;
+        const blackKings = board.filter(p => p === 'bK').length;
+        
+        // Если королей нет или больше 1 — просто показываем ход
+        if (whiteKings === 0 || blackKings === 0 || whiteKings > 1 || blackKings > 1) {
+            statusEl.textContent = currentTurn === 'w' ? 'Ход белых' : 'Ход чёрных';
+            statusEl.style.color = '#fff';
             return;
         }
         
@@ -334,7 +398,6 @@
     }
 
     const boardEl = document.getElementById('board');
-    const statusEl = document.getElementById('status');
 
     function render() {
       boardEl.innerHTML = '';
@@ -343,9 +406,17 @@
           selected = null;
       }
       
-      let possibleMoves = (selected !== null && !gameOver && !deleteMode && !spawnMode) ? getValidMoves(selected) : [];
+      let possibleMoves = (selected !== null && !gameOver && !deleteMode) ? getValidMoves(selected) : [];
+      
+      // Подсветка шаха — только если ровно 1 король
       let checkIdx = -1;
-      if (isKingInCheck(currentTurn)) checkIdx = board.indexOf(currentTurn + 'K');
+      const kingsOfTurn = [];
+      for (let i = 0; i < 64; i++) {
+          if (board[i] === currentTurn + 'K') kingsOfTurn.push(i);
+      }
+      if (kingsOfTurn.length === 1 && isKingInCheck(currentTurn)) {
+          checkIdx = kingsOfTurn[0];
+      }
 
       for (let i = 0; i < 64; i++) {
         const sq = document.createElement('div');
@@ -367,7 +438,6 @@
             const img = document.createElement('img');
             img.src = croppedImages[board[i]] || pieceFiles[board[i]];
             img.className = 'piece-img'; 
-            img.style.padding = '5%';
             sq.appendChild(img);
         }
         
@@ -378,47 +448,32 @@
     }
 
     function onSquareClick(i) {
-      if (deleteMode) {
+      // Режим удаления (только хост)
+      if (deleteMode && isHost) {
         if (blocked.has(i)) {
           blocked.delete(i);
-          statusEl.textContent = 'Клетка разблокирована!';
+          document.getElementById('status').textContent = 'Клетка разблокирована!';
         } else if (board[i]) {
           board[i] = null;
           selected = null;
-          statusEl.textContent = 'Фигура удалена!';
+          document.getElementById('status').textContent = 'Фигура удалена!';
         } else {
           blocked.add(i);
-          statusEl.textContent = 'Клетка заблокирована!';
+          document.getElementById('status').textContent = 'Клетка заблокирована!';
         }
+        gameOver = false;
         syncToFirebase();
         render();
-        checkGameState();
-        return;
-      }
-      
-      if (spawnMode) {
-        if (blocked.has(i)) {
-          statusEl.textContent = 'Нельзя спавнить на заблокированной клетке!';
-          return;
-        }
-        if (board[i]) {
-          statusEl.textContent = 'Клетка занята!';
-          return;
-        }
-        board[i] = spawnTypes[spawnIndex];
-        syncToFirebase();
-        render();
-        checkGameState();
-        statusEl.textContent = `${spawnNames[spawnIndex]} создана!`;
+        updateStatus();
         return;
       }
       
       if (gameOver) return;
       
       const piece = board[i];
-      const myColor = isHost ? 'w' : 'b';
 
       if (selected === null) {
+        // Можно выбрать только свою фигуру своего цвета и если сейчас её ход
         if (piece && piece[0] === myColor && piece[0] === currentTurn) {
             selected = i;
             render();
@@ -442,8 +497,9 @@
             currentTurn = currentTurn === 'w' ? 'b' : 'w';
             syncToFirebase();
             render();
-            checkGameState();
+            updateStatus();
         } else {
+            // Перевыбор своей фигуры
             if (piece && piece[0] === myColor && piece[0] === currentTurn) {
                 selected = i;
                 render();
@@ -469,77 +525,70 @@
     roomRef.on('value', (snap) => {
       const data = snap.val();
       if (!data) {
-        statusEl.textContent = 'Сделайте ход';
+        document.getElementById('status').textContent = 'Сделайте ход';
         return;
       }
-      board = data.board || board;
+      
+      // Преобразуем объект Firebase обратно в массив
+      if (data.board) {
+          board = Array.from({length: 64}, (_, i) => data.board[i] || null);
+      }
+      
       blocked = new Set(data.blocked || []);
       currentTurn = data.turn || 'w';
       render();
-      checkGameState();
+      updateStatus();
     });
 
-    const controls = document.getElementById('controls');
-    
-    if (isHost) {
-      const btnSpawn = document.createElement('button');
-      btnSpawn.textContent = spawnNames[spawnIndex];
-      btnSpawn.style.background = '#27ae60';
-      btnSpawn.style.color = '#fff';
-      
-      btnSpawn.onclick = () => {
-        if (!spawnMode) {
-          spawnMode = true;
-          deleteMode = false;
-          btnToggle.classList.remove('active');
-          btnSpawn.classList.add('active');
-          statusEl.textContent = `Режим спавна: ${spawnNames[spawnIndex]}. Нажмите на пустую клетку.`;
-        } else {
-          spawnIndex = (spawnIndex + 1) % spawnTypes.length;
-          btnSpawn.textContent = spawnNames[spawnIndex];
-          statusEl.textContent = `Выбрано: ${spawnNames[spawnIndex]}. Нажмите на пустую клетку.`;
-        }
-      };
+    // ============ КНОПКИ ============
+    const btnDel = document.getElementById('btnDel');
+    const btnSide = document.getElementById('btnSide');
+    const btnReset = document.getElementById('btnReset');
+    const statusEl = document.getElementById('status');
 
-      const btnToggle = document.createElement('button');
-      btnToggle.textContent = '🚫 Удалить';
-      btnToggle.style.background = '#8e44ad';
-      btnToggle.style.color = '#fff';
-      btnToggle.onclick = () => {
-        deleteMode = !deleteMode;
-        spawnMode = false;
-        btnSpawn.classList.remove('active');
-        btnToggle.classList.toggle('active', deleteMode);
-        statusEl.textContent = deleteMode 
-          ? 'Режим удаления: нажмите на фигуру/клетку' 
-          : 'Режим удаления выключен';
-      };
-
-      const btnReset = document.createElement('button');
-      btnReset.textContent = '🔄 Рестарт';
-      btnReset.style.background = '#e67e22';
-      btnReset.style.color = '#fff';
-      btnReset.onclick = () => {
-        startBoard();
-        blocked.clear();
-        selected = null;
-        currentTurn = 'w';
-        gameOver = false;
-        spawnMode = false;
-        deleteMode = false;
-        spawnIndex = 0;
-        btnSpawn.textContent = spawnNames[0];
-        btnSpawn.classList.remove('active');
-        btnToggle.classList.remove('active');
-        syncToFirebase();
-        render();
-        checkGameState();
-      };
-
-      controls.appendChild(btnToggle);
-      controls.appendChild(btnSpawn);
-      controls.appendChild(btnReset);
+    // Обновляем текст кнопки стороны
+    function updateSideButton() {
+        btnSide.textContent = myColor === 'w' ? '🔄 Сторона: Белые' : '🔄 Сторона: Чёрные';
     }
+    updateSideButton();
+
+    // Кнопка "Удалить" — только для хоста
+    if (isHost) {
+        btnDel.style.display = 'block';
+        btnDel.onclick = () => {
+            deleteMode = !deleteMode;
+            btnDel.classList.toggle('active', deleteMode);
+            statusEl.textContent = deleteMode 
+                ? 'Режим удаления: фигура → пусто → заблокировано → разблокировано' 
+                : 'Режим удаления выключен';
+            if (deleteMode) selected = null;
+            render();
+        };
+        
+        btnReset.style.display = 'block';
+        btnReset.onclick = () => {
+            if (!confirm('Сбросить игру?')) return;
+            startBoard();
+            blocked.clear();
+            selected = null;
+            currentTurn = 'w';
+            gameOver = false;
+            deleteMode = false;
+            btnDel.classList.remove('active');
+            syncToFirebase();
+            render();
+            updateStatus();
+        };
+    }
+
+    // Кнопка "Смена стороны" — для всех
+    btnSide.onclick = () => {
+        myColor = myColor === 'w' ? 'b' : 'w';
+        selected = null;
+        updateSideButton();
+        statusEl.textContent = `Теперь вы играете за ${myColor === 'w' ? 'белых' : 'чёрных'}`;
+        render();
+    };
   </script>
 </body>
-  </html>
+</html>
