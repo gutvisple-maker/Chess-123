@@ -8,7 +8,9 @@
 *{box-sizing:border-box}
 body{font-family:sans-serif;background:#1a1a1a;color:#eee;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;min-height:100vh}
 .board-container{width:100%;max-width:400px}
-#board{display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);width:100%;aspect-ratio:1/1;border:4px solid #444;background:#333}
+#board{display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);width:100%;aspect-ratio:1/1;border:4px solid #444;background:#333;transition:transform .3s}
+#board.flipped{transform:rotate(180deg)}
+#board.flipped .piece-img,#board.flipped .move-dot{transform:rotate(180deg)}
 .square{display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;position:relative;overflow:hidden}
 .light{background:#f0d9b5}.dark{background:#b58863}
 .blocked{background:#222!important;cursor:not-allowed;border:1px solid #000}
@@ -40,7 +42,7 @@ button.active{outline:3px solid #f1c40f;box-shadow:0 0 10px rgba(241,196,15,.5)}
 <div id="status" class="status-bar">Загрузка...</div>
 <div class="btn-row">
 <button id="btnDel" class="btn-del" style="display:none">🚫 Удалить</button>
-<button id="btnSide" class="btn-side">🔄 Сторона: Белые</button>
+<button id="btnSide" class="btn-side" style="display:none">🔄 Сторона: Белые</button>
 <button id="btnReset" class="btn-reset" style="display:none">🔄 Рестарт</button>
 </div>
 <div id="spawnPanel" class="spawn-panel">
@@ -61,8 +63,8 @@ const pieceFiles={'wP':'white_pawn.png','wR':'white_rook.png','wN':'white_knight
 const pieceOrder=['K','Q','B','N','R','P'];
 const croppedImages={};let loadedCount=0;const totalImages=Object.keys(pieceFiles).length;let renderCalled=false;
 function cropImage(src,cb){const img=new Image();img.crossOrigin="Anonymous";img.onload=()=>{try{const c=document.createElement('canvas');c.width=img.width;c.height=img.height;const x=c.getContext('2d');x.drawImage(img,0,0);const d=x.getImageData(0,0,c.width,c.height).data;let t=c.height,l=c.width,r=0,b=0;for(let y=0;y<c.height;y++)for(let xx=0;xx<c.width;xx++){if(d[(y*c.width+xx)*4+3]>10){if(xx<l)l=xx;if(xx>r)r=xx;if(y<t)t=y;if(y>b)b=y}}if(r>=l&&b>=t){const cc=document.createElement('canvas');cc.width=r-l+1;cc.height=b-t+1;cc.getContext('2d').drawImage(c,l,t,cc.width,cc.height,0,0,cc.width,cc.height);cb(cc.toDataURL())}else cb(src)}catch(e){cb(src)}};img.onerror=()=>cb(src);img.src=src}
-for(const k in pieceFiles)cropImage(pieceFiles[k],d=>{croppedImages[k]=d;loadedCount++;if(loadedCount===totalImages&&!renderCalled){renderCalled=true;render();updateStatus();if(isHost)buildSpawnPanel()}});
-setTimeout(()=>{if(!renderCalled){renderCalled=true;render();updateStatus();if(isHost)buildSpawnPanel()}},3000);
+for(const k in pieceFiles)cropImage(pieceFiles[k],d=>{croppedImages[k]=d;loadedCount++;if(loadedCount===totalImages&&!renderCalled){renderCalled=true;render();updateStatus();if(isHost)buildSpawnPanel();updateBoardOrientation()}});
+setTimeout(()=>{if(!renderCalled){renderCalled=true;render();updateStatus();if(isHost)buildSpawnPanel();updateBoardOrientation()}},3000);
 const isValid=(r,c)=>r>=0&&r<8&&c>=0&&c<8;
 function getRawMoves(index,tb=board){const p=tb[index];if(!p)return[];const col=p[0],t=p[1],row=Math.floor(index/8),cl=index%8;let m=[];const add=(r,c)=>{if(!isValid(r,c))return false;const ti=r*8+c;if(blocked.has(ti))return false;const tp=tb[ti];if(tp&&tp[0]===col)return false;m.push(ti);return !tp};
 if(t==='P'){const d=col==='w'?-1:1,sr=col==='w'?6:1;if(isValid(row+d,cl)&&!tb[(row+d)*8+cl]&&!blocked.has((row+d)*8+cl)){m.push((row+d)*8+cl);if(row===sr&&!tb[(row+2*d)*8+cl]&&!blocked.has((row+2*d)*8+cl))m.push((row+2*d)*8+cl)}for(const dc of[-1,1]){const nr=row+d,nc=cl+dc;if(isValid(nr,nc)){const ti=nr*8+nc,tp=tb[ti];if(tp&&tp[0]!==col&&!blocked.has(ti))m.push(ti)}}}
@@ -76,6 +78,7 @@ function isKingInCheck(color,tb=board){const ki=[];for(let i=0;i<64;i++)if(tb[i]
 function getValidMoves(index){const rm=getRawMoves(index),vm=[],p=board[index];if(!p)return[];const col=p[0];for(const mv of rm){const tb=[...board];tb[mv]=p;tb[index]=null;if(p==='wP'&&Math.floor(mv/8)===0)tb[mv]='wQ';if(p==='bP'&&Math.floor(mv/8)===7)tb[mv]='bQ';if(!isKingInCheck(col,tb))vm.push(mv)}return vm}
 function updateStatus(){const s=document.getElementById('status');const wk=board.filter(p=>p==='wK').length,bk=board.filter(p=>p==='bK').length;if(!wk||!bk||wk>1||bk>1){s.textContent=currentTurn==='w'?'Ход белых':'Ход чёрных';s.style.color='#fff';return}let hm=false;for(let i=0;i<64;i++)if(board[i]&&board[i][0]===currentTurn&&getValidMoves(i).length>0){hm=true;break}const chk=isKingInCheck(currentTurn);if(!hm){gameOver=true;if(chk){s.textContent=`МАТ! Победили ${currentTurn==='w'?'чёрные':'белые'}!`;s.style.color='#e74c3c'}else{s.textContent='ПАТ! Ничья.';s.style.color='#f1c40f'}}else if(chk){s.textContent='ШАХ!';s.style.color='#e74c3c'}else{s.textContent=currentTurn==='w'?'Ход белых':'Ход чёрных';s.style.color='#fff'}}
 const boardEl=document.getElementById('board');
+function updateBoardOrientation(){if(myColor==='b')boardEl.classList.add('flipped');else boardEl.classList.remove('flipped')}
 function render(){boardEl.innerHTML='';if(selected!==null&&!board[selected])selected=null;const pm=(selected!==null&&!gameOver&&!deleteMode&&!spawnMode)?getValidMoves(selected):[];let ci=-1;const kt=[];for(let i=0;i<64;i++)if(board[i]===currentTurn+'K')kt.push(i);if(kt.length===1&&isKingInCheck(currentTurn))ci=kt[0];
 for(let i=0;i<64;i++){const sq=document.createElement('div'),r=Math.floor(i/8),c=i%8;sq.className='square '+((r+c)%2===0?'light':'dark');if(blocked.has(i))sq.classList.add('blocked');if(selected===i)sq.classList.add('selected');if(i===ci)sq.classList.add('check');if(pm.includes(i)){const d=document.createElement('div');d.className='move-dot';sq.appendChild(d)}
 if(board[i]){const im=document.createElement('img');im.src=croppedImages[board[i]]||pieceFiles[board[i]];im.className='piece-img';sq.appendChild(im)}
@@ -87,17 +90,20 @@ if(gameOver)return;const p=board[i];
 if(selected===null){if(p&&p[0]===myColor&&p[0]===currentTurn){selected=i;render()}}else{if(i===selected){selected=null;render();return}const sp=board[selected],vm=getValidMoves(selected);
 if(vm.includes(i)){board[i]=sp;board[selected]=null;if(sp==='wP'&&Math.floor(i/8)===0)board[i]='wQ';if(sp==='bP'&&Math.floor(i/8)===7)board[i]='bQ';selected=null;currentTurn=currentTurn==='w'?'b':'w';syncToFirebase();render();updateStatus()}else{if(p&&p[0]===myColor&&p[0]===currentTurn){selected=i;render()}else{selected=null;render()}}}}
 const roomRef=db.ref('rooms/default');
-function syncToFirebase(){roomRef.set({board:board,blocked:Array.from(blocked),turn:currentTurn,updated:Date.now()})}
-roomRef.on('value',snap=>{const d=snap.val();if(!d){document.getElementById('status').textContent='Сделайте ход';return}if(d.board)board=Array.from({length:64},(_,i)=>d.board[i]||null);blocked=new Set(d.blocked||[]);currentTurn=d.turn||'w';render();updateStatus()});
+function syncToFirebase(){roomRef.set({board:board,blocked:Array.from(blocked),turn:currentTurn,hostColor:myColor,updated:Date.now()})}
+roomRef.on('value',snap=>{const d=snap.val();if(!d){document.getElementById('status').textContent='Сделайте ход';return}if(d.board)board=Array.from({length:64},(_,i)=>d.board[i]||null);blocked=new Set(d.blocked||[]);currentTurn=d.turn||'w';
+if(!isHost&&d.hostColor){myColor=d.hostColor==='w'?'b':'w'}
+updateBoardOrientation();
+if(isHost)updateSideButton();render();updateStatus()});
 const btnDel=document.getElementById('btnDel'),btnSide=document.getElementById('btnSide'),btnReset=document.getElementById('btnReset'),spawnPanel=document.getElementById('spawnPanel'),statusEl=document.getElementById('status');
 function updateSideButton(){btnSide.textContent=myColor==='w'?'🔄 Сторона: Белые':'🔄 Сторона: Чёрные'}
 updateSideButton();
 function buildSpawnPanel(){const wr=document.getElementById('spawnWhite'),br=document.getElementById('spawnBlack');wr.innerHTML='';br.innerHTML='';pieceOrder.forEach(t=>{const wk='w'+t,bk='b'+t;const wb=document.createElement('div');wb.className='spawn-btn';wb.dataset.piece=wk;const wi=document.createElement('img');wi.src=croppedImages[wk]||pieceFiles[wk];wb.appendChild(wi);wb.onclick=()=>selectSpawn(wk);wr.appendChild(wb);const bb=document.createElement('div');bb.className='spawn-btn';bb.dataset.piece=bk;const bi=document.createElement('img');bi.src=croppedImages[bk]||pieceFiles[bk];bb.appendChild(bi);bb.onclick=()=>selectSpawn(bk);br.appendChild(bb)})}
 function selectSpawn(pk){document.querySelectorAll('.spawn-btn').forEach(b=>b.classList.remove('active'));if(spawnMode===pk){spawnMode=null;deleteMode=false;btnDel.classList.remove('active');statusEl.textContent='Режим спавна выключен'}else{spawnMode=pk;deleteMode=false;btnDel.classList.remove('active');const el=document.querySelector(`.spawn-btn[data-piece="${pk}"]`);if(el)el.classList.add('active');statusEl.textContent='Спавн выбран. Нажмите на клетку.'}render()}
-if(isHost){btnDel.style.display='block';btnReset.style.display='block';spawnPanel.classList.add('visible');
+if(isHost){btnDel.style.display='block';btnSide.style.display='block';btnReset.style.display='block';spawnPanel.classList.add('visible');
 btnDel.onclick=()=>{deleteMode=!deleteMode;spawnMode=null;document.querySelectorAll('.spawn-btn').forEach(b=>b.classList.remove('active'));btnDel.classList.toggle('active',deleteMode);statusEl.textContent=deleteMode?'Режим удаления: нажмите на фигуру/клетку':'Режим удаления выключен';if(deleteMode)selected=null;render()};
+btnSide.onclick=()=>{myColor=myColor==='w'?'b':'w';selected=null;updateSideButton();updateBoardOrientation();statusEl.textContent=`Теперь вы играете за ${myColor==='w'?'белых':'чёрных'}`;syncToFirebase();render()};
 btnReset.onclick=()=>{if(!confirm('Сбросить игру?'))return;startBoard();blocked.clear();selected=null;currentTurn='w';gameOver=false;deleteMode=false;spawnMode=null;btnDel.classList.remove('active');document.querySelectorAll('.spawn-btn').forEach(b=>b.classList.remove('active'));syncToFirebase();render();updateStatus()}}
-btnSide.onclick=()=>{myColor=myColor==='w'?'b':'w';selected=null;updateSideButton();statusEl.textContent=`Теперь вы играете за ${myColor==='w'?'белых':'чёрных'}`;render()};
 </script>
 </body>
 </html>
