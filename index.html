@@ -12,8 +12,7 @@ body{font-family:sans-serif;background:#1a1a1a;color:#eee;margin:0;padding:0;dis
 #board.flipped{transform:rotate(180deg)}
 #board.flipped .piece-img,#board.flipped .move-dot,#board.flipped .piece-txt{transform:rotate(180deg)}
 .square{display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;position:relative;overflow:hidden}
-.light{background:#f0d9b5}
-.dark{background:#b58863}
+.light{background:#f0d9b5}.dark{background:#b58863}
 .blocked{background:#222!important;cursor:not-allowed;border:1px solid #000}
 .piece-img{width:90%;height:90%;object-fit:contain;pointer-events:none;display:block}
 .piece-txt{font-size:34px;line-height:1;pointer-events:none}
@@ -22,8 +21,7 @@ body{font-family:sans-serif;background:#1a1a1a;color:#eee;margin:0;padding:0;dis
 .controls-wrapper{width:100%;max-width:400px;border-top:3px solid #555;border-radius:0 0 12px 12px;padding:10px;background:#2c2c2c;display:flex;flex-direction:column;gap:8px}
 .status-bar{display:flex;gap:6px;width:100%}
 .status-game,.status-tech{flex:1;text-align:center;font-size:14px;font-weight:bold;padding:7px;background:#333;border-radius:6px;min-height:22px;display:flex;align-items:center;justify-content:center;word-break:break-word}
-.status-game{color:#fff}
-.status-tech{color:#f1c40f}
+.status-game{color:#fff}.status-tech{color:#f1c40f}
 .btn-row{display:flex;gap:6px;width:100%}
 button{flex:1;padding:10px 6px;font-size:12px;border:none;border-radius:8px;cursor:pointer;font-weight:bold;transition:transform .1s}
 button:active{transform:scale(.95)}
@@ -53,26 +51,26 @@ button.active{outline:3px solid #f1c40f;box-shadow:0 0 10px rgba(241,196,15,.5)}
 .chat-toggle{position:absolute;top:10px;right:10px;width:40px;height:40px;background:rgba(0,0,0,.7);border:2px solid #666;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:100;font-size:20px;color:#fff;transition:all .2s}
 .chat-toggle:active{transform:scale(.9)}
 .chat-badge{position:absolute;top:-5px;right:-5px;background:#e74c3c;color:#fff;font-size:11px;font-weight:bold;min-width:20px;height:20px;border-radius:10px;display:none;align-items:center;justify-content:center;padding:0 5px;border:2px solid #1a1a1a}
-.chat-panel{position:fixed;top:0;right:-100%;width:85%;max-width:340px;height:100%;background:#2c2c2c;border-left:3px solid #555;z-index:2000;transition:right .3s;display:flex;flex-direction:column}
+.chat-panel{position:fixed;top:0;right:-100%;width:85%;max-width:340px;height:100vh;background:#2c2c2c;border-left:3px solid #555;z-index:2000;transition:right .3s;display:flex;flex-direction:column;overflow:hidden}
 .chat-panel.open{right:0}
-.chat-header{padding:12px;background:#333;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #555}
+.chat-header{padding:12px;background:#333;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #555;flex-shrink:0}
 .chat-header h3{margin:0;font-size:16px}
 .chat-close{background:none;border:none;color:#fff;font-size:24px;cursor:pointer;padding:0 5px}
-.moves-section{flex:1;display:flex;flex-direction:column;border-bottom:2px solid #555;min-height:0}
-.moves-header{padding:8px 12px;background:#3a3a3a;font-size:13px;font-weight:bold;color:#f1c40f;border-bottom:1px solid #555}
-.moves-list{flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:4px;font-family:monospace;font-size:13px}
+.moves-section{flex:1;display:flex;flex-direction:column;border-bottom:2px solid #555;min-height:0;overflow:hidden}
+.moves-header{padding:8px 12px;background:#3a3a3a;font-size:13px;font-weight:bold;color:#f1c40f;border-bottom:1px solid #555;flex-shrink:0}
+.moves-list{flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:4px;font-family:monospace;font-size:13px;min-height:0}
 .move-entry{display:flex;gap:8px;padding:4px 8px;background:#333;border-radius:4px}
 .move-num{color:#888;min-width:24px}
 .move-white{color:#fff;flex:1}
 .move-black{color:#aaa;flex:1}
-.chat-section{flex:1;display:flex;flex-direction:column;min-height:0}
-.chat-messages{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+.chat-section{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.chat-messages{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px;min-height:0}
 .chat-msg{padding:8px 12px;border-radius:12px;max-width:85%;word-break:break-word;font-size:13px;position:relative;box-shadow:0 1px 2px rgba(0,0,0,.2)}
 .chat-msg.me{background:#27ae60;align-self:flex-end;border-bottom-right-radius:4px}
 .chat-msg.them{background:#555;align-self:flex-start;border-bottom-left-radius:4px}
 .chat-msg .author{font-size:10px;opacity:.7;margin-bottom:4px;font-weight:bold}
 .chat-msg .time{font-size:10px;opacity:.6;text-align:right;margin-top:4px}
-.chat-input-area{padding:10px;border-top:2px solid #555;display:flex;gap:6px}
+.chat-input-area{padding:10px;border-top:2px solid #555;display:flex;gap:6px;flex-shrink:0}
 .chat-input{flex:1;padding:10px;border:none;border-radius:20px;background:#444;color:#fff;font-size:13px;outline:none}
 .chat-input:focus{background:#555}
 .chat-send{padding:10px 16px;background:#27ae60;color:#fff;border:none;border-radius:20px;cursor:pointer;font-weight:bold;font-size:16px}
@@ -138,8 +136,8 @@ const pieceFiles={'wP':'white_pawn.png','wR':'white_rook.png','wN':'white_knight
 const pieceOrder=['K','Q','B','N','R','P'];
 const uniTxt={wK:'♔',wQ:'♕',wR:'♖',wB:'♗',wN:'♘',wP:'♙',bK:'♚',bQ:'♛',bR:'♜',bB:'♝',bN:'♞',bP:'♟'};
 const croppedImages={};
-function cropImage(src,cb){const img=new Image();img.crossOrigin="Anonymous";img.onload=()=>{try{const c=document.createElement('canvas');c.width=img.width;c.height=img.height;const x=c.getContext('2d');x.drawImage(img,0,0);const d=x.getImageData(0,0,c.width,c.height).data;let t=c.height,l=c.width,r=0,b=0;for(let y=0;y<c.height;y++)for(let xx=0;xx<c.width;xx++){if(d[(y*c.width+xx)*4+3]>10){if(xx<l)l=xx;if(xx>r)r=xx;if(y<t)t=y;if(y>b)b=y}}if(r>=l&&b>=t){const cc=document.createElement('canvas');cc.width=r-l+1;cc.height=b-t+1;cc.getContext('2d').drawImage(c,l,t,cc.width,cc.height,0,0,cc.width,cc.height);cb(cc.toDataURL())}else cb(src)}catch(e){cb(src)}};img.onerror=()=>cb(null);img.src=src}const isValid=(r,c)=>r>=0&&r<8&&c>=0&&c<8;
-function getRawMoves(index,tb=board,skipEnPassant=false,skipCastling=false){const p=tb[index];if(!p)return[];const col=p[0],t=p[1],row=Math.floor(index/8),cl=index%8;let m=[];const add=(r,c)=>{if(!isValid(r,c))return false;const ti=r*8+c;if(blocked.has(ti))return false;const tp=tb[ti];if(tp&&tp[0]===col)return false;m.push(ti);return !tp};if(t==='P'){const d=col==='w'?-1:1,sr=col==='w'?6:1;if(isValid(row+d,cl)&&!tb[(row+d)*8+cl]&&!blocked.has((row+d)*8+cl)){m.push((row+d)*8+cl);if(row===sr&&!tb[(row+2*d)*8+cl]&&!blocked.has((row+2*d)*8+cl))m.push((row+2*d)*8+cl)}for(const dc of[-1,1]){const nr=row+d,nc=cl+dc;if(isValid(nr,nc)){const ti=nr*8+nc,tp=tb[ti];if(tp&&tp[0]!==col&&!blocked.has(ti))m.push(ti);if(!skipEnPassant&&enPassantTarget!=null&&enPassantTarget===ti)m.push(ti)}}}else if(t==='N'){for(const[dr,dc]of[[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]])add(row+dr,cl+dc)}else if(t==='B'){for(const[dr,dc]of[[-1,-1],[-1,1],[1,-1],[1,1]]){let r=row+dr,c=cl+dc;while(isValid(r,c)){if(!add(r,c))break;r+=dr;c+=dc}}}else if(t==='R'){for(const[dr,dc]of[[-1,0],[1,0],[0,-1],[0,1]]){let r=row+dr,c=cl+dc;while(isValid(r,c)){if(!add(r,c))break;r+=dr;c+=dc}}}else if(t==='Q'){for(const[dr,dc]of[[-1,-1],[-1,1],[1,-1],[1,1],[-1,0],[1,0],[0,-1],[0,1]]){let r=row+dr,c=cl+dc;while(isValid(r,c)){if(!add(r,c))break;r+=dr;c+=dc}}}else if(t==='K'){for(const[dr,dc]of[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]])add(row+dr,cl+dc);if(!skipCastling){const baseRow=col==='w'?7:0;const kingIdx=baseRow*8+4;const kSide=col==='w'?'wK':'bK';const qSide=col==='w'?'wQ':'bQ';if(index===kingIdx&&!isKingInCheck(col,tb)){if(castlingRights[kSide]&&!tb[baseRow*8+5]&&!tb[baseRow*8+6]&&tb[baseRow*8+7]===col+'R'&&!isSquareAttacked(baseRow*8+5,col,tb)&&!isSquareAttacked(baseRow*8+6,col,tb))m.push(baseRow*8+6);if(castlingRights[qSide]&&!tb[baseRow*8+3]&&!tb[baseRow*8+2]&&!tb[baseRow*8+1]&&tb[baseRow*8+0]===col+'R'&&!isSquareAttacked(baseRow*8+3,col,tb)&&!isSquareAttacked(baseRow*8+2,col,tb))m.push(baseRow*8+2)}}}return m}
+function cropImage(src,cb){const img=new Image();img.crossOrigin="Anonymous";img.onload=()=>{try{const c=document.createElement('canvas');c.width=img.width;c.height=img.height;const x=c.getContext('2d');x.drawImage(img,0,0);const d=x.getImageData(0,0,c.width,c.height).data;let t=c.height,l=c.width,r=0,b=0;for(let y=0;y<c.height;y++)for(let xx=0;xx<c.width;xx++){if(d[(y*c.width+xx)*4+3]>10){if(xx<l)l=xx;if(xx>r)r=xx;if(y<t)t=y;if(y>b)b=y}}if(r>=l&&b>=t){const cc=document.createElement('canvas');cc.width=r-l+1;cc.height=b-t+1;cc.getContext('2d').drawImage(c,l,t,cc.width,cc.height,0,0,cc.width,cc.height);cb(cc.toDataURL())}else cb(src)}catch(e){cb(src)}};img.onerror=()=>cb(null);img.src=src}
+const isValid=(r,c)=>r>=0&&r<8&&c>=0&&c<8;function getRawMoves(index,tb=board,skipEnPassant=false,skipCastling=false){const p=tb[index];if(!p)return[];const col=p[0],t=p[1],row=Math.floor(index/8),cl=index%8;let m=[];const add=(r,c)=>{if(!isValid(r,c))return false;const ti=r*8+c;if(blocked.has(ti))return false;const tp=tb[ti];if(tp&&tp[0]===col)return false;m.push(ti);return !tp};if(t==='P'){const d=col==='w'?-1:1,sr=col==='w'?6:1;if(isValid(row+d,cl)&&!tb[(row+d)*8+cl]&&!blocked.has((row+d)*8+cl)){m.push((row+d)*8+cl);if(row===sr&&!tb[(row+2*d)*8+cl]&&!blocked.has((row+2*d)*8+cl))m.push((row+2*d)*8+cl)}for(const dc of[-1,1]){const nr=row+d,nc=cl+dc;if(isValid(nr,nc)){const ti=nr*8+nc,tp=tb[ti];if(tp&&tp[0]!==col&&!blocked.has(ti))m.push(ti);if(!skipEnPassant&&enPassantTarget!=null&&enPassantTarget===ti)m.push(ti)}}}else if(t==='N'){for(const[dr,dc]of[[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]])add(row+dr,cl+dc)}else if(t==='B'){for(const[dr,dc]of[[-1,-1],[-1,1],[1,-1],[1,1]]){let r=row+dr,c=cl+dc;while(isValid(r,c)){if(!add(r,c))break;r+=dr;c+=dc}}}else if(t==='R'){for(const[dr,dc]of[[-1,0],[1,0],[0,-1],[0,1]]){let r=row+dr,c=cl+dc;while(isValid(r,c)){if(!add(r,c))break;r+=dr;c+=dc}}}else if(t==='Q'){for(const[dr,dc]of[[-1,-1],[-1,1],[1,-1],[1,1],[-1,0],[1,0],[0,-1],[0,1]]){let r=row+dr,c=cl+dc;while(isValid(r,c)){if(!add(r,c))break;r+=dr;c+=dc}}}else if(t==='K'){for(const[dr,dc]of[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]])add(row+dr,cl+dc);if(!skipCastling){const baseRow=col==='w'?7:0;const kingIdx=baseRow*8+4;const kSide=col==='w'?'wK':'bK';const qSide=col==='w'?'wQ':'bQ';if(index===kingIdx&&!isKingInCheck(col,tb)){if(castlingRights[kSide]&&!tb[baseRow*8+5]&&!tb[baseRow*8+6]&&tb[baseRow*8+7]===col+'R'&&!isSquareAttacked(baseRow*8+5,col,tb)&&!isSquareAttacked(baseRow*8+6,col,tb))m.push(baseRow*8+6);if(castlingRights[qSide]&&!tb[baseRow*8+3]&&!tb[baseRow*8+2]&&!tb[baseRow*8+1]&&tb[baseRow*8+0]===col+'R'&&!isSquareAttacked(baseRow*8+3,col,tb)&&!isSquareAttacked(baseRow*8+2,col,tb))m.push(baseRow*8+2)}}}return m}
 function isSquareAttacked(index,color,tb){for(let i=0;i<64;i++){if(tb[i]&&tb[i][0]!==color){if(getRawMoves(i,tb,true,true).includes(index))return true}}return false}
 function isKingInCheck(color,tb=board){const ki=[];for(let i=0;i<64;i++)if(tb[i]===color+'K')ki.push(i);if(!ki.length)return false;for(const k of ki)for(let i=0;i<64;i++){if(tb[i]&&tb[i][0]!==color&&getRawMoves(i,tb,true,true).includes(k))return true}return false}
 function getValidMoves(index){const rm=getRawMoves(index),vm=[],p=board[index];if(!p)return[];const col=p[0];for(const mv of rm){const tb=[...board];tb[mv]=p;tb[index]=null;if(p==='wP'&&Math.floor(mv/8)===0)tb[mv]='wQ';if(p==='bP'&&Math.floor(mv/8)===7)tb[mv]='bQ';if(p[1]==='P'&&enPassantTarget!=null&&mv===enPassantTarget){tb[Math.floor(index/8)*8+(mv%8)]=null}if(p[1]==='K'&&Math.abs(mv%8-index%8)===2){const br=Math.floor(index/8);if(mv%8===6){tb[br*8+5]=tb[br*8+7];tb[br*8+7]=null}else if(mv%8===2){tb[br*8+3]=tb[br*8+0];tb[br*8+0]=null}}if(!isKingInCheck(col,tb))vm.push(mv)}return vm}
