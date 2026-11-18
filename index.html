@@ -30,13 +30,19 @@ button.active{outline:3px solid #f1c40f;box-shadow:0 0 10px rgba(241,196,15,.5)}
 .btn-side{background:#2980b9;color:#fff}
 .btn-reset{background:#e67e22;color:#fff}
 .spawn-panel{display:none;width:100%;background:#333;border-radius:8px;padding:5px;margin-top:3px}
-.spawn-panel.visible{display:block}
-.spawn-row{display:flex;justify-content:space-around;gap:3px;margin-bottom:3px}
-.spawn-row:last-child{margin-bottom:0}
+.spawn-panel.visible{display:flex;gap:8px}
+.spawn-toggle{display:flex;flex-direction:column;gap:4px;flex-shrink:0}
+.spawn-toggle button{padding:6px 8px;font-size:11px;min-width:50px}
+.spawn-toggle button.active-w{background:#f0d9b5;color:#000}
+.spawn-toggle button.active-b{background:#b58863;color:#fff}
+.spawn-rows{flex:1;display:flex;flex-direction:column;gap:3px}
+.spawn-row{display:flex;justify-content:space-around;gap:3px}
 .spawn-btn{flex:1;aspect-ratio:1;max-width:44px;background:#444;border:2px solid #555;border-radius:5px;padding:3px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;font-size:26px}
 .spawn-btn:active{transform:scale(.9)}
 .spawn-btn.active{border-color:#f1c40f;background:#555;box-shadow:0 0 8px rgba(241,196,15,.6)}
 .spawn-btn img{width:100%;height:100%;object-fit:contain;pointer-events:none}
+.custom-row{display:flex;justify-content:space-around;gap:3px;opacity:0.4}
+.custom-hint{flex:1;text-align:center;font-size:10px;color:#666;padding:8px 3px}
 .selected{box-shadow:inset 0 0 0 4px #e74c3c}
 .move-dot{width:20%;height:20%;background:rgba(46,204,113,.7);border-radius:50%;position:absolute;pointer-events:none}
 .check{background:#e74c3c!important}
@@ -63,7 +69,8 @@ button.active{outline:3px solid #f1c40f;box-shadow:0 0 10px rgba(241,196,15,.5)}
 .move-num{color:#888;min-width:24px}
 .move-white{color:#fff;flex:1}
 .move-black{color:#aaa;flex:1}
-.empty-hint{color:#666;font-style:italic;text-align:center;padding:20px 8px;font-size:12px}
+.empty-hint{color:#888;font-style:italic;text-align:center;padding:20px 8px;font-size:12px}
+.empty-hint .ver{display:block;font-size:18px;font-weight:bold;color:#f1c40f;margin-top:6px;font-style:normal}
 .chat-section{flex:1 1 50%;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .chat-messages{flex:1 1 auto;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px;min-height:0}
 .chat-msg{padding:8px 12px;border-radius:12px;max-width:85%;word-break:break-word;font-size:13px;position:relative;box-shadow:0 1px 2px rgba(0,0,0,.2)}
@@ -93,8 +100,14 @@ button.active{outline:3px solid #f1c40f;box-shadow:0 0 10px rgba(241,196,15,.5)}
 <button id="btnReset" class="btn-reset" style="display:none">🔄 Рестарт</button>
 </div>
 <div id="spawnPanel" class="spawn-panel">
-<div class="spawn-row" id="spawnWhite"></div>
-<div class="spawn-row" id="spawnBlack"></div>
+<div class="spawn-toggle">
+<button id="spawnWhiteBtn" class="active-w">⚪ Белые</button>
+<button id="spawnBlackBtn">⚫ Чёрные</button>
+</div>
+<div class="spawn-rows">
+<div class="spawn-row" id="spawnRow"></div>
+<div class="custom-row" id="customRow"><div class="custom-hint">Кастомные скоро</div></div>
+</div>
 </div>
 </div>
 <div id="chatPanel" class="chat-panel">
@@ -108,7 +121,7 @@ button.active{outline:3px solid #f1c40f;box-shadow:0 0 10px rgba(241,196,15,.5)}
 </div>
 <div class="chat-section">
 <div class="moves-header">💬 Чат</div>
-<div class="chat-messages" id="chatMessages"><div class="empty-hint">Пока нет сообщений</div></div>
+<div class="chat-messages" id="chatMessages"></div>
 <div class="chat-input-area">
 <input type="text" class="chat-input" id="chatInput" placeholder="Написать сообщение..." maxlength="200">
 <button class="chat-send" id="chatSend">➤</button>
@@ -127,10 +140,11 @@ button.active{outline:3px solid #f1c40f;box-shadow:0 0 10px rgba(241,196,15,.5)}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
+const APP_VERSION='1.0.0';
 const isHost=location.hash==='#h';
 try{firebase.initializeApp({apiKey:"AIzaSyAJJr63C9nLQ6SHHwDbqTmX3xHFY-_eyXM",authDomain:"chess-30025.firebaseapp.com",databaseURL:"https://chess-30025-default-rtdb.firebaseio.com",projectId:"chess-30025",storageBucket:"chess-30025.firebasestorage.app",messagingSenderId:"33351797755",appId:"1:33351797755:web:bea157f178c09b6c0d595e"})}catch(e){}
 const db=firebase.database();
-let board=Array(64).fill(null),blocked=new Set(),selected=null,currentTurn='w',gameOver=false,myColor=isHost?'w':'b',deleteMode=false,spawnMode=null,lastMove=null,enPassantTarget=null,castlingRights={wK:true,wQ:true,bK:true,bQ:true},chatOpen=false,lastMsgCount=0,unreadCount=0,moveHistory=[];
+let board=Array(64).fill(null),blocked=new Set(),selected=null,currentTurn='w',gameOver=false,myColor=isHost?'w':'b',deleteMode=false,spawnMode=null,spawnColor='w',lastMove=null,enPassantTarget=null,castlingRights={wK:true,wQ:true,bK:true,bQ:true},chatOpen=false,lastMsgCount=0,unreadCount=0,moveHistory=[];
 const startBoard=()=>{board=Array(64).fill(null);gameOver=false;lastMove=null;enPassantTarget=null;castlingRights={wK:true,wQ:true,bK:true,bQ:true};moveHistory=[];board[0]='bR';board[1]='bN';board[2]='bB';board[3]='bQ';board[4]='bK';board[5]='bB';board[6]='bN';board[7]='bR';for(let i=8;i<16;i++)board[i]='bP';for(let i=48;i<56;i++)board[i]='wP';board[56]='wR';board[57]='wN';board[58]='wB';board[59]='wQ';board[60]='wK';board[61]='wB';board[62]='wN';board[63]='wR'};
 startBoard();
 const pieceFiles={'wP':'white_pawn.png','wR':'white_rook.png','wN':'white_knight.png','wB':'white_bishop.png','wQ':'white_qween.png','wK':'white_king.png','bP':'black_pawn.png','bR':'black_rook.png','bN':'black_knight.png','bB':'black_bishop.png','bQ':'black_qween.png','bK':'black_king.png'};
@@ -175,7 +189,6 @@ const notation=buildNotation(selected,i,sp,captured||isEnPassant,isEnPassant,isC
 const oppColor=sp[0]==='w'?'b':'w';const oppCheck=isKingInCheck(oppColor);if(oppCheck){const hasOppMoves=(()=>{for(let j=0;j<64;j++)if(board[j]&&board[j][0]===oppColor&&getValidMoves(j).length>0)return true;return false})();if(!hasOppMoves)notation+='#';else notation+='+'}
 moveHistory.push(notation);
 lastMove={from:selected,to:i};selected=null;
-const oldTurn=currentTurn;
 currentTurn=currentTurn==='w'?'b':'w';
 gameOver=false;
 syncToFirebase();render();updateStatus();updateMovesList()}else{if(canSelectPiece(p)){selected=i;render()}else{selected=null;render()}}}}
@@ -184,7 +197,9 @@ function syncToFirebase(){try{roomRef.set({board:board,blocked:Array.from(blocke
 roomRef.on('value',snap=>{const d=snap.val();if(!d){statusGameEl.textContent='Сделайте ход';return}if(d.board)board=Array.from({length:64},(_,i)=>d.board[i]||null);blocked=new Set(d.blocked||[]);currentTurn=d.turn||'w';lastMove=d.lastMove||null;enPassantTarget=(d.enPassantTarget==null?null:d.enPassantTarget);castlingRights=d.castlingRights||{wK:true,wQ:true,bK:true,bQ:true};moveHistory=d.moveHistory||[];if(!isHost&&d.hostColor){myColor=d.hostColor==='w'?'b':'w'}updateBoardOrientation();if(isHost)updateSideButton();render();updateStatus();updateMovesList()});
 const chatRef=db.ref('rooms/default/chat');
 const chatMessagesEl=document.getElementById('chatMessages'),chatBadge=document.getElementById('chatBadge');
-chatRef.on('value',snap=>{const msgs=snap.val()||{};const keys=Object.keys(msgs).sort((a,b)=>(msgs[a].time||0)-(msgs[b].time||0));if(keys.length===0){chatMessagesEl.innerHTML='<div class="empty-hint">Пока нет сообщений</div>';lastMsgCount=0;return}chatMessagesEl.innerHTML='';keys.forEach(k=>{const m=msgs[k];const senderIsWhite=m.role==='host'?m.hostColor==='w':m.hostColor!=='w';const senderName=senderIsWhite?'♔ Белые':'♟ Чёрные';const isMe=m.role===(isHost?'host':'guest');const div=document.createElement('div');div.className='chat-msg '+(isMe?'me':'them');const time=new Date(m.time).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});div.innerHTML=`<div class="author">${isMe?'Вы':senderName}</div>${escapeHtml(m.text||'')}<div class="time">${time}</div>`;chatMessagesEl.appendChild(div)});chatMessagesEl.scrollTop=chatMessagesEl.scrollHeight;if(keys.length>lastMsgCount&&!chatOpen){unreadCount++;chatBadge.textContent=unreadCount;chatBadge.style.display='flex'}lastMsgCount=keys.length});
+function renderChatEmpty(){chatMessagesEl.innerHTML='<div class="empty-hint">♟ Шахматы<span class="ver">v'+APP_VERSION+'</span></div>'}
+renderChatEmpty();
+chatRef.on('value',snap=>{const msgs=snap.val()||{};const keys=Object.keys(msgs).sort((a,b)=>(msgs[a].time||0)-(msgs[b].time||0));if(keys.length===0){renderChatEmpty();lastMsgCount=0;return}chatMessagesEl.innerHTML='';keys.forEach(k=>{const m=msgs[k];const senderIsWhite=m.role==='host'?m.hostColor==='w':m.hostColor!=='w';const senderName=senderIsWhite?'♔ Белые':'♟ Чёрные';const isMe=m.role===(isHost?'host':'guest');const div=document.createElement('div');div.className='chat-msg '+(isMe?'me':'them');const time=new Date(m.time).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});div.innerHTML=`<div class="author">${isMe?'Вы':senderName}</div>${escapeHtml(m.text||'')}<div class="time">${time}</div>`;chatMessagesEl.appendChild(div)});chatMessagesEl.scrollTop=chatMessagesEl.scrollHeight;if(keys.length>lastMsgCount&&!chatOpen){unreadCount++;chatBadge.textContent=unreadCount;chatBadge.style.display='flex'}lastMsgCount=keys.length});
 function escapeHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 function sendChat(){const inp=document.getElementById('chatInput');const text=inp.value.trim();if(!text)return;chatRef.push({text:text,role:isHost?'host':'guest',hostColor:myColor,time:Date.now()});inp.value=''}
 document.getElementById('chatSend').onclick=sendChat;
@@ -195,21 +210,24 @@ document.getElementById('chatClose').onclick=()=>{chatOpen=false;chatPanel.class
 const btnDel=document.getElementById('btnDel'),btnSide=document.getElementById('btnSide'),btnReset=document.getElementById('btnReset'),spawnPanel=document.getElementById('spawnPanel');
 function updateSideButton(){btnSide.textContent=myColor==='w'?'🔄 Сторона: Белые':'🔄 Сторона: Чёрные'}
 updateSideButton();
-function buildSpawnPanel(){const wr=document.getElementById('spawnWhite'),br=document.getElementById('spawnBlack');wr.innerHTML='';br.innerHTML='';pieceOrder.forEach(t=>{const wk='w'+t,bk='b'+t;const wb=document.createElement('div');wb.className='spawn-btn';wb.dataset.piece=wk;if(croppedImages[wk]){const wi=document.createElement('img');wi.src=croppedImages[wk];wb.appendChild(wi)}else{wb.textContent=uniTxt[wk];wb.style.color='#fff'}wb.onclick=()=>selectSpawn(wk);wr.appendChild(wb);const bb=document.createElement('div');bb.className='spawn-btn';bb.dataset.piece=bk;if(croppedImages[bk]){const bi=document.createElement('img');bi.src=croppedImages[bk];bb.appendChild(bi)}else{bb.textContent=uniTxt[bk];bb.style.color='#111';bb.style.textShadow='0 0 3px #fff'}bb.onclick=()=>selectSpawn(bk);br.appendChild(bb)})}
+function buildSpawnPanel(){const row=document.getElementById('spawnRow');row.innerHTML='';const color=spawnColor;pieceOrder.forEach(t=>{const key=color+t;const btn=document.createElement('div');btn.className='spawn-btn';btn.dataset.piece=key;if(croppedImages[key]){const img=document.createElement('img');img.src=croppedImages[key];btn.appendChild(img)}else{btn.textContent=uniTxt[key];btn.style.color=color==='w'?'#fff':'#111';if(color==='b')btn.style.textShadow='0 0 3px #fff'}btn.onclick=()=>selectSpawn(key);row.appendChild(btn)})}
 function selectSpawn(pk){document.querySelectorAll('.spawn-btn').forEach(b=>b.classList.remove('active'));if(spawnMode===pk){spawnMode=null;deleteMode=false;btnDel.classList.remove('active');setTechMsg('Спавн выключен')}else{spawnMode=pk;deleteMode=false;btnDel.classList.remove('active');const el=document.querySelector(`.spawn-btn[data-piece="${pk}"]`);if(el)el.classList.add('active');setTechMsg('Выберите клетку')}render()}
+document.getElementById('spawnWhiteBtn').onclick=()=>{spawnColor='w';document.getElementById('spawnWhiteBtn').className='active-w';document.getElementById('spawnBlackBtn').className='';buildSpawnPanel()};
+document.getElementById('spawnBlackBtn').onclick=()=>{spawnColor='b';document.getElementById('spawnBlackBtn').className='active-b';document.getElementById('spawnWhiteBtn').className='';buildSpawnPanel()};
 const modalOverlay=document.getElementById('modalOverlay'),modalText=document.getElementById('modalText'),modalCancel=document.getElementById('modalCancel'),modalOk=document.getElementById('modalOk');
 let modalCallback=null;
 function showModal(text,cb){modalText.textContent=text;modalCallback=cb;modalOverlay.classList.add('visible')}
 function hideModal(){modalOverlay.classList.remove('visible');modalCallback=null}
 modalCancel.onclick=hideModal;
 modalOk.onclick=()=>{if(modalCallback)modalCallback();hideModal()};
-if(isHost){btnDel.style.display='block';btnSide.style.display='block';btnReset.style.display='block';spawnPanel.classList.add('visible');btnDel.onclick=()=>{deleteMode=!deleteMode;spawnMode=null;document.querySelectorAll('.spawn-btn').forEach(b=>b.classList.remove('active'));btnDel.classList.toggle('active',deleteMode);setTechMsg(deleteMode?'Режим удаления':'Выключено');if(deleteMode)selected=null;render()};btnSide.onclick=()=>{myColor=myColor==='w'?'b':'w';selected=null;updateSideButton();updateBoardOrientation();setTechMsg(`Теперь вы за ${myColor==='w'?'белых':'чёрных'}`);syncToFirebase();render()};btnReset.onclick=()=>showModal('Сбросить игру?',()=>{startBoard();blocked.clear();selected=null;currentTurn='w';gameOver=false;deleteMode=false;spawnMode=null;btnDel.classList.remove('active');document.querySelectorAll('.spawn-btn').forEach(b=>b.classList.remove('active'));try{chatRef.remove()}catch(e){}lastMsgCount=0;unreadCount=0;chatBadge.style.display='none';chatMessagesEl.innerHTML='<div class="empty-hint">Пока нет сообщений</div>';syncToFirebase();render();updateStatus();updateMovesList();setTechMsg('Игра сброшена')})}
+if(isHost){btnDel.style.display='block';btnSide.style.display='block';btnReset.style.display='block';spawnPanel.classList.add('visible');btnDel.onclick=()=>{deleteMode=!deleteMode;spawnMode=null;document.querySelectorAll('.spawn-btn').forEach(b=>b.classList.remove('active'));btnDel.classList.toggle('active',deleteMode);setTechMsg(deleteMode?'Режим удаления':'Выключено');if(deleteMode)selected=null;render()};btnSide.onclick=()=>{myColor=myColor==='w'?'b':'w';selected=null;updateSideButton();updateBoardOrientation();setTechMsg(`Теперь вы за ${myColor==='w'?'белых':'чёрных'}`);syncToFirebase();render()};btnReset.onclick=()=>showModal('Сбросить игру?',()=>{startBoard();blocked.clear();selected=null;currentTurn='w';gameOver=false;deleteMode=false;spawnMode=null;btnDel.classList.remove('active');document.querySelectorAll('.spawn-btn').forEach(b=>b.classList.remove('active'));try{chatRef.remove()}catch(e){}lastMsgCount=0;unreadCount=0;chatBadge.style.display='none';renderChatEmpty();syncToFirebase();render();updateStatus();updateMovesList();setTechMsg('Игра сброшена')})}
 function updateMovesList(){const movesListEl=document.getElementById('movesList');if(!moveHistory||moveHistory.length===0){movesListEl.innerHTML='<div class="empty-hint">Пока нет ходов</div>';return}movesListEl.innerHTML='';for(let i=0;i<moveHistory.length;i+=2){const moveNum=Math.floor(i/2)+1;const whiteMove=moveHistory[i]||'';const blackMove=moveHistory[i+1]||'';const entry=document.createElement('div');entry.className='move-entry';entry.innerHTML=`<span class="move-num">${moveNum}.</span><span class="move-white">${whiteMove}</span><span class="move-black">${blackMove}</span>`;movesListEl.appendChild(entry)}movesListEl.scrollTop=movesListEl.scrollHeight}
 updateBoardOrientation();
 render();
 updateStatus();
 updateMovesList();
 if(isHost)buildSpawnPanel();
+setTechMsg('v'+APP_VERSION);
 for(const k in pieceFiles){cropImage(pieceFiles[k],data=>{if(data){croppedImages[k]=data;render();if(isHost)buildSpawnPanel()}})}
 </script>
 </body>
