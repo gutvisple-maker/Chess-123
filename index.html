@@ -129,10 +129,11 @@ button.active{outline:3px solid #f1c40f;box-shadow:0 0 10px rgba(241,196,15,.5)}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
-const APP_VERSION='1.9.7';
+const APP_VERSION='1.9.8';
 const isHost=location.hash==='#h';
-try{firebase.initializeApp({apiKey:"AIzaSyAJJr63C9nLQ6SHHwDbqTmX3xHFY-_eyXM",authDomain:"chess-30025.firebaseapp.com",databaseURL:"https://chess-30025-default-rtdb.firebaseio.com",projectId:"chess-30025",storageBucket:"chess-30025.firebasestorage.app",messagingSenderId:"33351797755",appId:"1:33351797755:web:bea157f178c09b6c0d595e"})}catch(e){}
-const db=firebase.database();
+let fbReady=false;
+try{firebase.initializeApp({apiKey:"AIzaSyAJJr63C9nLQ6SHHwDbqTmX3xHFY-_eyXM",authDomain:"chess-30025.firebaseapp.com",databaseURL:"https://chess-30025-default-rtdb.firebaseio.com",projectId:"chess-30025",storageBucket:"chess-30025.firebasestorage.app",messagingSenderId:"33351797755",appId:"1:33351797755:web:bea157f178c09b6c0d595e"});fbReady=true}catch(e){console.warn('Firebase init failed',e)}
+const db=fbReady?firebase.database():null;
 let board=Array(64).fill(null),blocked=new Set(),selected=null,currentTurn='w',gameOver=false,myColor=isHost?'w':'b',deleteMode=false,spawnMode=null,spawnColor='w',lastMove=null,enPassantTarget=null,castlingRights={wK:true,wQ:true,bK:true,bQ:true},chatOpen=false,lastMsgCount=0,unreadCount=0,moveHistory=[],lastUpdated=0;
 const startBoard=()=>{board=Array(64).fill(null);gameOver=false;lastMove=null;enPassantTarget=null;castlingRights={wK:true,wQ:true,bK:true,bQ:true};moveHistory=[];board[0]='bR';board[1]='bN';board[2]='bB';board[3]='bQ';board[4]='bK';board[5]='bB';board[6]='bN';board[7]='bR';for(let i=8;i<16;i++)board[i]='bP';for(let i=48;i<56;i++)board[i]='wP';board[56]='wR';board[57]='wN';board[58]='wB';board[59]='wQ';board[60]='wK';board[61]='wB';board[62]='wN';board[63]='wR'};
 startBoard();
@@ -199,18 +200,18 @@ lastMove={from:selected,to:i};selected=null;
 currentTurn=currentTurn==='w'?'b':'w';
 gameOver=false;
 syncToFirebase();render();updateStatus();updateMovesList()}else{if(canSelectPiece(p)){selected=i;render()}else{selected=null;render()}}}}
-const roomRef=db.ref('rooms/default');
-function syncToFirebase(){try{const now=Date.now();lastUpdated=now;roomRef.set({board:board,blocked:Array.from(blocked),turn:currentTurn,hostColor:myColor,lastMove:lastMove,enPassantTarget:enPassantTarget,castlingRights:castlingRights,moveHistory:moveHistory,updated:now})}catch(e){}}
-roomRef.on('value',snap=>{const d=snap.val();if(!d){statusGameEl.textContent='Сделайте ход';return}
+function syncToFirebase(){if(!db)return;try{const now=Date.now();lastUpdated=now;db.ref('rooms/default').set({board:board,blocked:Array.from(blocked),turn:currentTurn,hostColor:myColor,lastMove:lastMove,enPassantTarget:enPassantTarget,castlingRights:castlingRights,moveHistory:moveHistory,updated:now})}catch(e){}}
+if(db){const roomRef=db.ref('rooms/default');
+roomRef.on('value',snap=>{try{const d=snap.val();if(!d){statusGameEl.textContent='Сделайте ход';return}
 if(d.updated&&d.updated<=lastUpdated)return;
-if(d.board)board=Array.from({length:64},(_,i)=>d.board[i]||null);blocked=new Set(d.blocked||[]);currentTurn=d.turn||'w';lastMove=d.lastMove||null;enPassantTarget=(d.enPassantTarget==null?null:d.enPassantTarget);castlingRights=d.castlingRights||{wK:true,wQ:true,bK:true,bQ:true};moveHistory=d.moveHistory||[];if(!isHost&&d.hostColor){myColor=d.hostColor==='w'?'b':'w'}updateBoardOrientation();if(isHost)updateSideButton();render();updateStatus();updateMovesList()});
+if(d.board)board=Array.from({length:64},(_,i)=>d.board[i]||null);blocked=new Set(d.blocked||[]);currentTurn=d.turn||'w';lastMove=d.lastMove||null;enPassantTarget=(d.enPassantTarget==null?null:d.enPassantTarget);castlingRights=d.castlingRights||{wK:true,wQ:true,bK:true,bQ:true};moveHistory=d.moveHistory||[];if(!isHost&&d.hostColor){myColor=d.hostColor==='w'?'b':'w'}updateBoardOrientation();if(isHost)updateSideButton();render();updateStatus();updateMovesList()}catch(e){console.warn('Firebase read error',e)}},err=>{console.warn('Firebase error',err);setTechMsg('Офлайн режим')});
 const chatRef=db.ref('rooms/default/chat');
 const chatMessagesEl=document.getElementById('chatMessages'),chatBadge=document.getElementById('chatBadge');
 function renderChatEmpty(){chatMessagesEl.innerHTML='<div class="empty-hint">♟ Шахматы<span class="ver">v'+APP_VERSION+'</span></div>'}
 renderChatEmpty();
-chatRef.on('value',snap=>{const msgs=snap.val()||{};const keys=Object.keys(msgs).sort((a,b)=>(msgs[a].time||0)-(msgs[b].time||0));if(keys.length===0){renderChatEmpty();lastMsgCount=0;return}chatMessagesEl.innerHTML='';keys.forEach(k=>{const m=msgs[k];const senderIsWhite=m.role==='host'?m.hostColor==='w':m.hostColor!=='w';const senderName=senderIsWhite?'♔ Белые':'♟ Чёрные';const isMe=m.role===(isHost?'host':'guest');const div=document.createElement('div');div.className='chat-msg '+(isMe?'me':'them');const time=new Date(m.time).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});div.innerHTML=`<div class="author">${isMe?'Вы':senderName}</div>${escapeHtml(m.text||'')}<div class="time">${time}</div>`;chatMessagesEl.appendChild(div)});chatMessagesEl.scrollTop=chatMessagesEl.scrollHeight;if(keys.length>lastMsgCount&&!chatOpen){unreadCount++;chatBadge.textContent=unreadCount;chatBadge.style.display='flex'}lastMsgCount=keys.length});
+chatRef.on('value',snap=>{try{const msgs=snap.val()||{};const keys=Object.keys(msgs).sort((a,b)=>(msgs[a].time||0)-(msgs[b].time||0));if(keys.length===0){renderChatEmpty();lastMsgCount=0;return}chatMessagesEl.innerHTML='';keys.forEach(k=>{const m=msgs[k];const senderIsWhite=m.role==='host'?m.hostColor==='w':m.hostColor!=='w';const senderName=senderIsWhite?'♔ Белые':'♟ Чёрные';const isMe=m.role===(isHost?'host':'guest');const div=document.createElement('div');div.className='chat-msg '+(isMe?'me':'them');const time=new Date(m.time).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});div.innerHTML=`<div class="author">${isMe?'Вы':senderName}</div>${escapeHtml(m.text||'')}<div class="time">${time}</div>`;chatMessagesEl.appendChild(div)});chatMessagesEl.scrollTop=chatMessagesEl.scrollHeight;if(keys.length>lastMsgCount&&!chatOpen){unreadCount++;chatBadge.textContent=unreadCount;chatBadge.style.display='flex'}lastMsgCount=keys.length}catch(e){}})}
 function escapeHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
-function sendChat(){const inp=document.getElementById('chatInput');const text=inp.value.trim();if(!text)return;chatRef.push({text:text,role:isHost?'host':'guest',hostColor:myColor,time:Date.now()});inp.value=''}
+function sendChat(){if(!db)return;const inp=document.getElementById('chatInput');const text=inp.value.trim();if(!text)return;db.ref('rooms/default/chat').push({text:text,role:isHost?'host':'guest',hostColor:myColor,time:Date.now()});inp.value=''}
 document.getElementById('chatSend').onclick=sendChat;
 document.getElementById('chatInput').addEventListener('keypress',e=>{if(e.key==='Enter')sendChat()});
 const chatPanel=document.getElementById('chatPanel'),chatToggle=document.getElementById('chatToggle');
@@ -227,14 +228,14 @@ function showModal(text,cb){modalText.textContent=text;modalCallback=cb;modalOve
 function hideModal(){modalOverlay.classList.remove('visible');modalCallback=null}
 modalCancel.onclick=hideModal;
 modalOk.onclick=()=>{if(modalCallback)modalCallback();hideModal()};
-if(isHost){btnDel.style.display='block';btnSide.style.display='block';btnReset.style.display='block';spawnPanel.classList.add('visible');btnDel.onclick=()=>{deleteMode=!deleteMode;spawnMode=null;document.querySelectorAll('.spawn-btn').forEach(b=>b.classList.remove('active'));btnDel.classList.toggle('active',deleteMode);setTechMsg(deleteMode?'Режим удаления':'Выключено');if(deleteMode)selected=null;render()};btnSide.onclick=()=>{myColor=myColor==='w'?'b':'w';selected=null;updateSideButton();updateBoardOrientation();setTechMsg(`Теперь вы за ${myColor==='w'?'белых':'чёрных'}`);syncToFirebase();render()};btnReset.onclick=()=>showModal('Сбросить игру?',()=>{startBoard();blocked.clear();selected=null;currentTurn='w';gameOver=false;deleteMode=false;spawnMode=null;btnDel.classList.remove('active');document.querySelectorAll('.spawn-btn').forEach(b=>b.classList.remove('active'));try{chatRef.remove()}catch(e){}lastMsgCount=0;unreadCount=0;chatBadge.style.display='none';renderChatEmpty();syncToFirebase();render();updateStatus();updateMovesList();setTechMsg('Игра сброшена')})}
+if(isHost){btnDel.style.display='block';btnSide.style.display='block';btnReset.style.display='block';spawnPanel.classList.add('visible');btnDel.onclick=()=>{deleteMode=!deleteMode;spawnMode=null;document.querySelectorAll('.spawn-btn').forEach(b=>b.classList.remove('active'));btnDel.classList.toggle('active',deleteMode);setTechMsg(deleteMode?'Режим удаления':'Выключено');if(deleteMode)selected=null;render()};btnSide.onclick=()=>{myColor=myColor==='w'?'b':'w';selected=null;updateSideButton();updateBoardOrientation();setTechMsg(`Теперь вы за ${myColor==='w'?'белых':'чёрных'}`);syncToFirebase();render()};btnReset.onclick=()=>showModal('Сбросить игру?',()=>{startBoard();blocked.clear();selected=null;currentTurn='w';gameOver=false;deleteMode=false;spawnMode=null;btnDel.classList.remove('active');document.querySelectorAll('.spawn-btn').forEach(b=>b.classList.remove('active'));if(db){try{db.ref('rooms/default/chat').remove()}catch(e){}}lastMsgCount=0;unreadCount=0;chatBadge.style.display='none';const chatMessagesEl=document.getElementById('chatMessages');chatMessagesEl.innerHTML='<div class="empty-hint">♟ Шахматы<span class="ver">v'+APP_VERSION+'</span></div>';syncToFirebase();render();updateStatus();updateMovesList();setTechMsg('Игра сброшена')})}
 function updateMovesList(){const movesListEl=document.getElementById('movesList');if(!moveHistory||moveHistory.length===0){movesListEl.innerHTML='<div class="empty-hint">Пока нет ходов</div>';return}movesListEl.innerHTML='';for(let i=0;i<moveHistory.length;i+=2){const moveNum=Math.floor(i/2)+1;const whiteMove=moveHistory[i]||'';const blackMove=moveHistory[i+1]||'';const entry=document.createElement('div');entry.className='move-entry';entry.innerHTML=`<span class="move-num">${moveNum}.</span><span class="move-white">${whiteMove}</span><span class="move-black">${blackMove}</span>`;movesListEl.appendChild(entry)}movesListEl.scrollTop=movesListEl.scrollHeight}
 updateBoardOrientation();
 render();
 updateStatus();
 updateMovesList();
 if(isHost)buildSpawnPanel();
-setTechMsg('v'+APP_VERSION);
+setTechMsg('v'+APP_VERSION+(fbReady?'':' [офлайн]'));
 for(const k in pieceFiles){cropImage(pieceFiles[k],data=>{if(data){croppedImages[k]=data;render();if(isHost)buildSpawnPanel()}})}
 </script>
 </body>
