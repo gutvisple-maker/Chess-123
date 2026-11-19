@@ -129,7 +129,7 @@ button.active{outline:3px solid #f1c40f;box-shadow:0 0 10px rgba(241,196,15,.5)}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
-const APP_VERSION='1.9.5';
+const APP_VERSION='1.9.2';
 const isHost=location.hash==='#h';
 try{firebase.initializeApp({apiKey:"AIzaSyAJJr63C9nLQ6SHHwDbqTmX3xHFY-_eyXM",authDomain:"chess-30025.firebaseapp.com",databaseURL:"https://chess-30025-default-rtdb.firebaseio.com",projectId:"chess-30025",storageBucket:"chess-30025.firebasestorage.app",messagingSenderId:"33351797755",appId:"1:33351797755:web:bea157f178c09b6c0d595e"})}catch(e){}
 const db=firebase.database();
@@ -143,7 +143,6 @@ const croppedImages={};
 function cropImage(src,cb){const img=new Image();img.crossOrigin="Anonymous";img.onload=()=>{try{const c=document.createElement('canvas');c.width=img.width;c.height=img.height;const x=c.getContext('2d');x.drawImage(img,0,0);const d=x.getImageData(0,0,c.width,c.height).data;let t=c.height,l=c.width,r=0,b=0;for(let y=0;y<c.height;y++)for(let xx=0;xx<c.width;xx++){if(d[(y*c.width+xx)*4+3]>10){if(xx<l)l=xx;if(xx>r)r=xx;if(y<t)t=y;if(y>b)b=y}}if(r>=l&&b>=t){const cc=document.createElement('canvas');cc.width=r-l+1;cc.height=b-t+1;cc.getContext('2d').drawImage(c,l,t,cc.width,cc.height,0,0,cc.width,cc.height);cb(cc.toDataURL())}else cb(src)}catch(e){cb(src)}};img.onerror=()=>cb(null);img.src=src}
 const isValid=(r,c)=>r>=0&&r<8&&c>=0&&c<8;
 function squareName(idx){const r=Math.floor(idx/8),c=idx%8;return 'abcdefgh'[c]+(8-r)}
-function findKing(color,tb){const kings=[];for(let i=0;i<64;i++){if(tb[i]&&tb[i]===color+'K')kings.push(i)}return kings}
 function buildNotation(from,to,piece,captured,isEnPassant,isCastle,castleSide,promotion){
 if(isCastle)return castleSide==='K'?'O-O':'O-O-O';
 let s='';
@@ -151,7 +150,7 @@ const type=piece.slice(1);
 if(type==='P'||type==='CPAWN'){
 if(captured||isEnPassant)s+='abcdefgh'[from%8]+'x';
 s+=squareName(to);
-if(promotion)s+='='+promotion.slice(1);
+if(promotion)s+='='+promotion[1];
 }else{
 s+=type;
 if(captured)s+='x';
@@ -174,23 +173,24 @@ if(index===kingIdx&&!isKingInCheck(col,tb)){if(castlingRights[kSide]&&!tb[baseRo
 else if(t==='CKING'){for(const[dr,dc]of[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]])add(row+dr,cl+dc)}
 return m}
 function isSquareAttacked(index,color,tb){for(let i=0;i<64;i++){if(tb[i]&&tb[i][0]!==color){if(getRawMoves(i,tb,true,true).includes(index))return true}}return false}
-function isKingInCheck(color,tb=board){const kings=findKing(color,tb);if(kings.length===0)return false;for(const k of kings)for(let i=0;i<64;i++){if(tb[i]&&tb[i][0]!==color&&getRawMoves(i,tb,true,true).includes(k))return true}return false}
+function isKingInCheck(color,tb=board){const ki=[];for(let i=0;i<64;i++)if(tb[i]===color+'K')ki.push(i);if(!ki.length)return false;for(const k of ki)for(let i=0;i<64;i++){if(tb[i]&&tb[i][0]!==color&&getRawMoves(i,tb,true,true).includes(k))return true}return false}
 function getValidMoves(index){const rm=getRawMoves(index),vm=[],p=board[index];if(!p)return[];const col=p[0];for(const mv of rm){const tb=[...board];tb[mv]=p;tb[index]=null;if((p==='wP'||p==='wCPAWN')&&Math.floor(mv/8)===0)tb[mv]='wQ';if((p==='bP'||p==='bCPAWN')&&Math.floor(mv/8)===7)tb[mv]='bQ';if(p.slice(1)==='K'&&Math.abs(mv%8-index%8)===2){const br=Math.floor(index/8);if(mv%8===6){tb[br*8+5]=tb[br*8+7];tb[br*8+7]=null}else if(mv%8===2){tb[br*8+3]=tb[br*8+0];tb[br*8+0]=null}}if(!isKingInCheck(col,tb))vm.push(mv)}return vm}
 const statusGameEl=document.getElementById('statusGame'),statusTechEl=document.getElementById('statusTech');
 function setTechMsg(msg){statusTechEl.textContent=msg;setTimeout(()=>{if(statusTechEl.textContent===msg)statusTechEl.textContent=''},3000)}
 function updateStatus(){const wk=board.filter(p=>p==='wK').length,bk=board.filter(p=>p==='bK').length;if(!wk||!bk||wk>1||bk>1){statusGameEl.textContent=currentTurn==='w'?'Ход белых':'Ход чёрных';statusGameEl.style.color='#fff';return}let hm=false;for(let i=0;i<64;i++)if(board[i]&&board[i][0]===currentTurn&&getValidMoves(i).length>0){hm=true;break}const chk=isKingInCheck(currentTurn);if(!hm){gameOver=true;if(chk){statusGameEl.textContent=`МАТ! ${currentTurn==='w'?'чёрные':'белые'} победили!`;statusGameEl.style.color='#e74c3c'}else{statusGameEl.textContent='ПАТ! Ничья.';statusGameEl.style.color='#f1c40f'}}else{gameOver=false;if(chk){statusGameEl.textContent='ШАХ!';statusGameEl.style.color='#e74c3c'}else{statusGameEl.textContent=currentTurn==='w'?'Ход белых':'Ход чёрных';statusGameEl.style.color='#fff'}}}
 const boardEl=document.getElementById('board');
 function updateBoardOrientation(){if(myColor==='b')boardEl.classList.add('flipped');else boardEl.classList.remove('flipped')}
-function render(){boardEl.innerHTML='';if(selected!==null&&!board[selected])selected=null;const pm=(selected!==null&&!gameOver&&!deleteMode&&!spawnMode)?getValidMoves(selected):[];let ci=-1;const kt=findKing(currentTurn);if(kt.length===1&&isKingInCheck(currentTurn))ci=kt[0];for(let i=0;i<64;i++){const sq=document.createElement('div'),r=Math.floor(i/8),c=i%8;sq.className='square '+((r+c)%2===0?'light':'dark');if(blocked.has(i))sq.classList.add('blocked');if(selected===i)sq.classList.add('selected');if(i===ci)sq.classList.add('check');if(pm.includes(i)){const d=document.createElement('div');d.className='move-dot';sq.appendChild(d)}if(board[i]){const key=board[i];if(croppedImages[key]){const im=document.createElement('img');im.src=croppedImages[key];im.className='piece-img';sq.appendChild(im)}else{const sp=document.createElement('span');sp.className='piece-txt '+key[0];sp.textContent=uniTxt[key]||'?';sq.appendChild(sp)}}sq.dataset.index=i;sq.addEventListener('click',()=>onSquareClick(i));boardEl.appendChild(sq)}}
+function render(){boardEl.innerHTML='';if(selected!==null&&!board[selected])selected=null;const pm=(selected!==null&&!gameOver&&!deleteMode&&!spawnMode)?getValidMoves(selected):[];let ci=-1;const kt=[];for(let i=0;i<64;i++)if(board[i]===currentTurn+'K')kt.push(i);if(kt.length===1&&isKingInCheck(currentTurn))ci=kt[0];for(let i=0;i<64;i++){const sq=document.createElement('div'),r=Math.floor(i/8),c=i%8;sq.className='square '+((r+c)%2===0?'light':'dark');if(blocked.has(i))sq.classList.add('blocked');if(selected===i)sq.classList.add('selected');if(i===ci)sq.classList.add('check');if(pm.includes(i)){const d=document.createElement('div');d.className='move-dot';sq.appendChild(d)}if(board[i]){const key=board[i];if(croppedImages[key]){const im=document.createElement('img');im.src=croppedImages[key];im.className='piece-img';sq.appendChild(im)}else{const sp=document.createElement('span');sp.className='piece-txt '+key[0];sp.textContent=uniTxt[key]||'?';sq.appendChild(sp)}}sq.dataset.index=i;sq.addEventListener('click',()=>onSquareClick(i));boardEl.appendChild(sq)}}
 function canSelectPiece(p){if(!p)return false;if(p[0]!==currentTurn)return false;if(isHost)return true;return p[0]===myColor}
-function explode3x3(centerIdx,excludeIdx){const cr=Math.floor(centerIdx/8),cc=centerIdx%8;let exploded=0;for(let dr=-1;dr<=1;dr++){for(let dc=-1;dc<=1;dc++){const r=cr+dr,c=cc+dc;if(isValid(r,c)){const ti=r*8+c;if(ti!==excludeIdx&&board[ti]){board[ti]=null;exploded++}}}}return exploded}
+function explode3x3(centerIdx){const cr=Math.floor(centerIdx/8),cc=centerIdx%8;let exploded=0;for(let dr=-1;dr<=1;dr++){for(let dc=-1;dc<=1;dc++){const r=cr+dr,c=cc+dc;if(isValid(r,c)){const ti=r*8+c;if(board[ti]){board[ti]=null;exploded++}}}}return exploded}
 function onSquareClick(i){if(deleteMode&&isHost){if(blocked.has(i)){blocked.delete(i);setTechMsg('Клетка разблокирована')}else if(board[i]){board[i]=null;selected=null;setTechMsg('Фигура удалена')}else{blocked.add(i);setTechMsg('Клетка заблокирована')}gameOver=false;syncToFirebase();render();updateStatus();return}if(spawnMode&&isHost){if(blocked.has(i)){setTechMsg('Клетка заблокирована!');return}board[i]=spawnMode;gameOver=false;syncToFirebase();render();updateStatus();setTechMsg('Фигура поставлена');return}if(gameOver)return;const p=board[i];if(selected===null){if(canSelectPiece(p)){selected=i;render()}}else{if(i===selected){selected=null;render();return}const sp=board[selected],vm=getValidMoves(selected);if(vm.includes(i)){const fromRow=Math.floor(selected/8),fromCol=selected%8,toRow=Math.floor(i/8),toCol=i%8;const captured=board[i]!==null;const isCastle=(sp.slice(1)==='K'&&Math.abs(toCol-fromCol)===2);const castleSide=isCastle?(toCol===6?'K':'Q'):null;
 const tempBoard=[...board];tempBoard[i]=sp;tempBoard[selected]=null;
 if(isCastle){if(toCol===6){tempBoard[fromRow*8+5]=tempBoard[fromRow*8+7];tempBoard[fromRow*8+7]=null}else if(toCol===2){tempBoard[fromRow*8+3]=tempBoard[fromRow*8+0];tempBoard[fromRow*8+0]=null}}
 if((sp==='wP'||sp==='wCPAWN')&&toRow===0){tempBoard[i]='wQ'}if((sp==='bP'||sp==='bCPAWN')&&toRow===7){tempBoard[i]='bQ'}
 if(isKingInCheck(sp[0],tempBoard)){setTechMsg('Этот ход оставляет вашего короля под шахом!');return}
 board[i]=sp;board[selected]=null;
-if(captured&&board[i]&&board[i].slice(1)==='CKING'){const explodedCount=explode3x3(i,i);if(explodedCount>0)setTechMsg('💥 Взрыв CKING! Уничтожено: '+explodedCount)}
+let explodedCount=0;
+if(sp.slice(1)==='CKING'&&captured){explodedCount=explode3x3(i);if(explodedCount>0)setTechMsg('💥 Взрыв! Уничтожено: '+explodedCount)}
 if(isCastle){if(toCol===6){board[fromRow*8+5]=board[fromRow*8+7];board[fromRow*8+7]=null}else if(toCol===2){board[fromRow*8+3]=board[fromRow*8+0];board[fromRow*8+0]=null}}if((sp.slice(1)==='P')&&Math.abs(toRow-fromRow)===2){enPassantTarget=(fromRow+toRow)/2*8+fromCol}else{enPassantTarget=null}if(sp==='wK'){castlingRights.wK=false;castlingRights.wQ=false}if(sp==='bK'){castlingRights.bK=false;castlingRights.bQ=false}if(sp==='wR'&&selected===63)castlingRights.wK=false;if(sp==='wR'&&selected===56)castlingRights.wQ=false;if(sp==='bR'&&selected===7)castlingRights.bK=false;if(sp==='bR'&&selected===0)castlingRights.bQ=false;if(i===63)castlingRights.wK=false;if(i===56)castlingRights.wQ=false;if(i===7)castlingRights.bK=false;if(i===0)castlingRights.bQ=false;let promotion=null;if((sp==='wP'||sp==='wCPAWN')&&toRow===0){board[i]='wQ';promotion='wQ'}if((sp==='bP'||sp==='bCPAWN')&&toRow===7){board[i]='bQ';promotion='bQ'}
 const notation=buildNotation(selected,i,sp,captured,false,isCastle,castleSide,promotion);
 const oppColor=sp[0]==='w'?'b':'w';const oppCheck=isKingInCheck(oppColor);if(oppCheck){const hasOppMoves=(()=>{for(let j=0;j<64;j++)if(board[j]&&board[j][0]===oppColor&&getValidMoves(j).length>0)return true;return false})();if(!hasOppMoves)notation+='#';else notation+='+'}
