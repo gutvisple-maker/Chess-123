@@ -13,7 +13,7 @@
 }
 html,body{height:100%}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;background:var(--bg);color:var(--txt);margin:0;padding:0;display:flex;flex-direction:column;align-items:center;min-height:100vh;min-height:100dvh;overflow-x:hidden;overscroll-behavior-y:contain}
-.board-container{width:100%;max-width:420px;padding:14px 12px 0;display:flex;flex-direction:column;gap:8px}
+.board-container{width:100%;max-width:600px;padding:14px 12px 0;display:flex;flex-direction:column;gap:8px}
 .board-top{display:flex;justify-content:flex-end;align-items:center;min-height:40px}
 #board{margin:0 auto;flex:none}
 #board{display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);width:100%;aspect-ratio:1/1;border-radius:8px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.45);transition:transform .3s}
@@ -25,7 +25,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-s
 .piece-img{width:90%;height:90%;object-fit:contain;pointer-events:none;display:block}
 .piece-txt{font-size:34px;line-height:1;pointer-events:none;filter:drop-shadow(0 1px 1px rgba(0,0,0,.35))}
 .piece-txt.w{color:#fff}.piece-txt.b{color:#1a1a1a}
-.controls-wrapper{width:100%;max-width:420px;padding:10px 12px 14px;display:flex;flex-direction:column;gap:8px}
+.controls-wrapper{width:100%;max-width:600px;padding:10px 12px 14px;display:flex;flex-direction:column;gap:8px}
 .status-bar{display:flex;gap:8px;width:100%}
 .status-game,.status-tech{flex:1;text-align:center;font-size:14px;font-weight:600;padding:9px;background:var(--panel);border:1px solid var(--line);border-radius:8px;min-height:24px;display:flex;align-items:center;justify-content:center;word-break:break-word}
 .status-game{color:var(--txt)}
@@ -97,15 +97,15 @@ button.active{outline:2px solid var(--accent);box-shadow:0 0 0 1px var(--accent)
 @media (max-width:460px){
   .board-container{padding:10px 6px 0;max-width:100%}
   .controls-wrapper{padding:8px 6px 12px;max-width:100%}
-  .board-top{min-height:36px}
-  .chat-toggle{width:36px;height:36px;font-size:18px}
-  .btn-row button{font-size:11px;padding:9px 4px}
-  .status-game,.status-tech{font-size:13px;padding:8px}
-  .spawn-panel{padding:6px}
-  .spawn-color-btn{padding:6px;font-size:12px;margin-bottom:4px}
+  .board-top{min-height:32px}
+  .chat-toggle{width:34px;height:34px;font-size:18px}
+  .btn-row button{font-size:11px;padding:7px 4px}
+  .status-game,.status-tech{font-size:13px;padding:6px}
+  .spawn-panel{padding:5px}
+  .spawn-color-btn{padding:5px;font-size:12px;margin-bottom:3px}
   .spawn-grid{grid-template-columns:repeat(6,1fr);gap:3px}
-  .spawn-btn{font-size:18px}
-  #board{width:min(100%, calc(100dvh - 330px));height:auto;aspect-ratio:1}
+  .spawn-btn{font-size:17px;padding:1px}
+  #board{width:min(100%, calc(100dvh - 318px));height:auto;aspect-ratio:1}
 }
 </style>
 </head>
@@ -265,10 +265,10 @@ currentTurn=currentTurn==='w'?'b':'w';
 gameOver=false;
 syncToFirebase();render();updateStatus();updateMovesList()}else{if(canSelectPiece(p)){selected=i;render()}else{selected=null;render()}}}}
 const roomRef=db.ref('rooms/default');
-function syncToFirebase(){try{const rev=appliedRev+1;appliedRev=rev;appliedWriter=CLIENT_ID;roomRef.update({board:board,blocked:Array.from(blocked),turn:currentTurn,hostColor:isHost?myColor:hostColor,lastMove:lastMove,enPassantTarget:enPassantTarget,castlingRights:castlingRights,moveHistory:moveHistory,undoStack:undoStack,updated:Date.now(),rev:rev,writer:CLIENT_ID})}catch(e){}}
+function syncToFirebase(){try{const rev=appliedRev+1;appliedRev=rev;appliedWriter=CLIENT_ID;roomRef.update({board:board,blocked:Array.from(blocked),turn:currentTurn,hostColor:isHost?myColor:hostColor,lastMove:lastMove,enPassantTarget:enPassantTarget,castlingRights:castlingRights,moveHistory:moveHistory,updated:Date.now(),rev:rev,writer:CLIENT_ID})}catch(e){}}
 roomRef.on('value',snap=>{const d=snap.val();if(!d){statusGameEl.textContent='Сделайте ход';return}
 if(typeof d.rev==='number'){const w=d.writer||'';if(d.rev<appliedRev)return;if(d.rev===appliedRev&&w<=appliedWriter)return;appliedRev=d.rev;appliedWriter=w}else if(d.writer===CLIENT_ID){return}
-if(d.board)board=Array.from({length:64},(_,i)=>d.board[i]||null);blocked=new Set(d.blocked||[]);currentTurn=d.turn||'w';lastMove=d.lastMove||null;enPassantTarget=(d.enPassantTarget==null?null:d.enPassantTarget);castlingRights=d.castlingRights||{wK:true,wQ:true,bK:true,bQ:true};moveHistory=d.moveHistory||[];undoStack=d.undoStack||[];if(d.hostColor){hostColor=d.hostColor;if(!isHost)myColor=hostColor==='w'?'b':'w'}selected=null;updateBoardOrientation();if(isHost)updateSideButton();render();updateStatus();updateMovesList()});
+if(d.board)board=Array.from({length:64},(_,i)=>d.board[i]||null);blocked=new Set(d.blocked||[]);currentTurn=d.turn||'w';lastMove=d.lastMove||null;enPassantTarget=(d.enPassantTarget==null?null:d.enPassantTarget);castlingRights=d.castlingRights||{wK:true,wQ:true,bK:true,bQ:true};moveHistory=d.moveHistory||[];if(d.hostColor){hostColor=d.hostColor;if(!isHost)myColor=hostColor==='w'?'b':'w'}selected=null;updateBoardOrientation();if(isHost)updateSideButton();render();updateStatus();updateMovesList()});
 const chatRef=db.ref('rooms/default/chat');
 const chatMessagesEl=document.getElementById('chatMessages'),chatBadge=document.getElementById('chatBadge');
 function renderChatEmpty(){chatMessagesEl.innerHTML='<div class="empty-hint">♟ Шахматы<span class="ver">v'+APP_VERSION+'</span></div>'}
