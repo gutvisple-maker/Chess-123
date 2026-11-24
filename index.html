@@ -6,80 +6,91 @@
 <title>Шахматы</title>
 <style>
 *{box-sizing:border-box}
-body{font-family:sans-serif;background:#1a1a1a;color:#eee;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;min-height:100vh}
-.board-container{width:100%;max-width:400px;position:relative}
-#board{display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);width:100%;aspect-ratio:1/1;border:4px solid #444;background:#333;transition:transform .3s}
+:root{
+--bg:#17181d;--panel:#232429;--panel2:#2b2c33;--line:#3a3b44;
+--txt:#e8eaed;--muted:#9aa0a8;--accent:#81b64c;--accent-dark:#6e9d3d;--blue:#4b8dde;
+--board-light:#f0d9b5;--board-dark:#b58863;--danger:#c94f4f;
+}
+html,body{height:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;background:var(--bg);color:var(--txt);margin:0;padding:0;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+.board-container{width:100%;max-width:420px;position:relative;padding:14px 12px 0}
+#board{display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);width:100%;aspect-ratio:1/1;border-radius:8px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.45);transition:transform .3s}
 #board.flipped{transform:rotate(180deg)}
 #board.flipped .piece-img,#board.flipped .move-dot,#board.flipped .piece-txt{transform:rotate(180deg)}
 .square{display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;position:relative;overflow:hidden}
-.light{background:#f0d9b5}.dark{background:#b58863}
-.blocked{background:#222!important;cursor:not-allowed;border:1px solid #000}
+.light{background:var(--board-light)}.dark{background:var(--board-dark)}
+.blocked{background:#2a2a2a!important;cursor:not-allowed}
 .piece-img{width:90%;height:90%;object-fit:contain;pointer-events:none;display:block}
-.piece-txt{font-size:34px;line-height:1;pointer-events:none}
-.piece-txt.w{color:#fff;text-shadow:0 0 3px #000}
-.piece-txt.b{color:#111;text-shadow:0 0 3px #fff}
-.controls-wrapper{width:100%;max-width:400px;border-top:3px solid #555;border-radius:0 0 12px 12px;padding:10px;background:#2c2c2c;display:flex;flex-direction:column;gap:8px}
-.status-bar{display:flex;gap:6px;width:100%}
-.status-game,.status-tech{flex:1;text-align:center;font-size:14px;font-weight:bold;padding:7px;background:#333;border-radius:6px;min-height:22px;display:flex;align-items:center;justify-content:center;word-break:break-word}
-.status-game{color:#fff}.status-tech{color:#f1c40f}
-.btn-row{display:flex;gap:6px;width:100%}
-button{flex:1;padding:10px 6px;font-size:12px;border:none;border-radius:8px;cursor:pointer;font-weight:bold;transition:transform .1s}
-button:active{transform:scale(.95)}
-button.active{outline:3px solid #f1c40f;box-shadow:0 0 10px rgba(241,196,15,.5)}
-.btn-del{background:#8e44ad;color:#fff}
-.btn-side{background:#2980b9;color:#fff}
-.btn-reset{background:#e67e22;color:#fff}
-.spawn-panel{display:none;width:100%;background:#333;border-radius:8px;padding:5px;margin-top:3px}
+.piece-txt{font-size:34px;line-height:1;pointer-events:none;filter:drop-shadow(0 1px 1px rgba(0,0,0,.35))}
+.piece-txt.w{color:#fff}.piece-txt.b{color:#1a1a1a}
+.controls-wrapper{width:100%;max-width:420px;padding:10px 12px 14px;display:flex;flex-direction:column;gap:8px}
+.status-bar{display:flex;gap:8px;width:100%}
+.status-game,.status-tech{flex:1;text-align:center;font-size:14px;font-weight:600;padding:9px;background:var(--panel);border:1px solid var(--line);border-radius:8px;min-height:24px;display:flex;align-items:center;justify-content:center;word-break:break-word}
+.status-game{color:var(--txt)}
+.status-game.turn{color:var(--accent)}
+.status-game.bad{color:var(--danger)}
+.status-tech{color:#f1c40f}
+.btn-row{display:flex;gap:8px;width:100%}
+button{flex:1;padding:9px 6px;font-size:12px;border:none;border-radius:8px;cursor:pointer;font-weight:700;transition:transform .08s,filter .15s;letter-spacing:.2px}
+button:hover{filter:brightness(1.08)}
+button:active{transform:scale(.97)}
+button.active{outline:2px solid var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.btn-del{background:var(--danger);color:#fff}
+.btn-side{background:var(--blue);color:#fff}
+.btn-reset{background:#c77d3e;color:#fff}
+.btn-undo{background:#955ba8;color:#fff}
+.spawn-panel{display:none;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px}
 .spawn-panel.visible{display:block}
-.spawn-color-btn{width:100%;padding:8px;font-size:13px;background:#f0d9b5;color:#000;border:2px solid #555;border-radius:5px;cursor:pointer;font-weight:bold;margin-bottom:4px}
-.spawn-color-btn.dark{background:#b58863;color:#fff}
-.spawn-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:3px}
-.spawn-btn{aspect-ratio:1;background:#444;border:2px solid #555;border-radius:5px;padding:2px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:22px;position:relative;user-select:none}
-.spawn-btn:active{transform:scale(.9)}
-.spawn-btn.active{border-color:#f1c40f;background:#555;box-shadow:0 0 8px rgba(241,196,15,.6)}
+.spawn-color-btn{width:100%;padding:8px;font-size:13px;background:#cfb487;color:#31210a;border:none;border-radius:6px;cursor:pointer;font-weight:700;margin-bottom:6px}
+.spawn-color-btn.dark{background:#8a7358;color:#fff}
+.spawn-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
+.spawn-btn{aspect-ratio:1;background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:2px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:22px;position:relative;user-select:none}
+.spawn-btn:hover{border-color:var(--muted)}
+.spawn-btn.active{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
 .spawn-btn img{width:100%;height:100%;object-fit:contain;pointer-events:none}
-.selected{box-shadow:inset 0 0 0 4px #e74c3c}
-.move-dot{width:20%;height:20%;background:rgba(46,204,113,.7);border-radius:50%;position:absolute;pointer-events:none}
-.square.move-cap::after{content:'';position:absolute;left:5%;top:5%;right:5%;bottom:5%;border:4px solid rgba(46,204,113,.75);border-radius:50%;pointer-events:none}
-.square.last-from{background-image:linear-gradient(rgba(241,196,15,.35),rgba(241,196,15,.35))}
-.square.last-to{background-image:linear-gradient(rgba(241,196,15,.55),rgba(241,196,15,.55))}
-.check{background:#e74c3c!important}
-.modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:1000;align-items:center;justify-content:center}
+.selected{box-shadow:inset 0 0 0 4px rgba(243,235,76,.9)}
+.move-dot{width:22%;height:22%;background:rgba(0,0,0,.25);border-radius:50%;position:absolute;pointer-events:none}
+.square.move-cap::after{content:'';position:absolute;inset:0;box-shadow:inset 0 0 0 6px rgba(0,0,0,.3);pointer-events:none}
+.square.last-move{background-image:linear-gradient(rgba(240,220,80,.42),rgba(240,220,80,.42))}
+.check{background:radial-gradient(circle,rgba(255,40,40,.85) 22%,rgba(170,0,0,.9) 65%)!important}
+.modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.65);z-index:1000;align-items:center;justify-content:center}
 .modal-overlay.visible{display:flex}
-.modal-box{background:#333;border-radius:12px;padding:20px;max-width:300px;width:90%;text-align:center}
-.modal-box p{margin:0 0 15px;font-size:16px}
+.modal-box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px;max-width:300px;width:90%;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+.modal-box p{margin:0 0 18px;font-size:16px}
 .modal-btns{display:flex;gap:10px;justify-content:center}
 .modal-btns button{padding:10px 20px;font-size:14px}
-.btn-cancel{background:#555;color:#fff}
-.btn-ok{background:#e74c3c;color:#fff}
-.chat-toggle{position:absolute;top:10px;right:10px;width:40px;height:40px;background:rgba(0,0,0,.7);border:2px solid #666;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:100;font-size:20px;color:#fff;transition:all .2s}
+.btn-cancel{background:var(--panel2);color:var(--txt)}
+.btn-ok{background:var(--danger);color:#fff}
+.chat-toggle{position:absolute;top:6px;right:16px;width:40px;height:40px;background:rgba(0,0,0,.55);border:1px solid var(--line);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:100;font-size:20px;color:#fff;transition:all .2s;backdrop-filter:blur(4px)}
 .chat-toggle:active{transform:scale(.9)}
-.chat-badge{position:absolute;top:-5px;right:-5px;background:#e74c3c;color:#fff;font-size:11px;font-weight:bold;min-width:20px;height:20px;border-radius:10px;display:none;align-items:center;justify-content:center;padding:0 5px;border:2px solid #1a1a1a}
-.chat-panel{position:fixed;top:0;right:-100%;width:85%;max-width:340px;height:100vh;height:100dvh;background:#2c2c2c;border-left:3px solid #555;z-index:2000;transition:right .3s;display:flex;flex-direction:column;overflow:hidden}
+.chat-badge{position:absolute;top:-4px;right:-4px;background:var(--danger);color:#fff;font-size:11px;font-weight:700;min-width:20px;height:20px;border-radius:10px;display:none;align-items:center;justify-content:center;padding:0 5px;border:2px solid var(--bg)}
+.chat-panel{position:fixed;top:0;right:-100%;width:85%;max-width:360px;height:100vh;height:100dvh;background:var(--panel);border-left:1px solid var(--line);z-index:2000;transition:right .3s;display:flex;flex-direction:column;overflow:hidden}
 .chat-panel.open{right:0}
-.chat-header{padding:12px;background:#333;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #555;flex-shrink:0}
+.chat-header{padding:14px;background:var(--panel2);display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);flex-shrink:0}
 .chat-header h3{margin:0;font-size:16px}
-.chat-close{background:none;border:none;color:#fff;font-size:24px;cursor:pointer;padding:0 5px}
-.moves-section{flex:1 1 50%;display:flex;flex-direction:column;border-bottom:2px solid #555;min-height:0;overflow:hidden}
-.moves-header{padding:8px 12px;background:#3a3a3a;font-size:13px;font-weight:bold;color:#f1c40f;border-bottom:1px solid #555;flex-shrink:0}
-.moves-list{flex:1 1 auto;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:4px;font-family:monospace;font-size:13px;min-height:0}
-.move-entry{display:flex;gap:8px;padding:4px 8px;background:#333;border-radius:4px}
-.move-num{color:#888;min-width:24px}
-.move-white{color:#fff;flex:1}
-.move-black{color:#aaa;flex:1}
-.empty-hint{color:#888;font-style:italic;text-align:center;padding:20px 8px;font-size:12px}
-.empty-hint .ver{display:block;font-size:18px;font-weight:bold;color:#f1c40f;margin-top:6px;font-style:normal}
+.chat-close{background:none;border:none;color:var(--txt);font-size:24px;cursor:pointer;padding:0 5px}
+.moves-section{flex:1 1 50%;display:flex;flex-direction:column;border-bottom:1px solid var(--line);min-height:0;overflow:hidden}
+.moves-header{padding:8px 12px;background:var(--panel2);font-size:12px;font-weight:700;color:#d7b26a;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--line);flex-shrink:0}
+.moves-list{flex:1 1 auto;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:4px;font-family:'SF Mono',Consolas,monospace;font-size:13px;min-height:0}
+.move-entry{display:flex;gap:8px;padding:5px 10px;background:var(--panel2);border-radius:6px}
+.move-entry.hl{background:#353640;outline:1px solid var(--line)}
+.move-num{color:var(--muted);min-width:26px}
+.move-white{color:var(--txt);flex:1}
+.move-black{color:var(--muted);flex:1}
+.empty-hint{color:var(--muted);font-style:italic;text-align:center;padding:20px 8px;font-size:12px}
+.empty-hint .ver{display:block;font-size:18px;font-weight:700;color:#d7b26a;margin-top:6px;font-style:normal}
 .chat-section{flex:1 1 50%;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .chat-messages{flex:1 1 auto;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px;min-height:0}
-.chat-msg{padding:8px 12px;border-radius:12px;max-width:85%;word-break:break-word;font-size:13px;position:relative;box-shadow:0 1px 2px rgba(0,0,0,.2)}
-.chat-msg.me{background:#27ae60;align-self:flex-end;border-bottom-right-radius:4px}
-.chat-msg.them{background:#555;align-self:flex-start;border-bottom-left-radius:4px}
-.chat-msg .author{font-size:10px;opacity:.7;margin-bottom:4px;font-weight:bold}
+.chat-msg{padding:9px 12px;border-radius:12px;max-width:85%;word-break:break-word;font-size:13px;position:relative;line-height:1.35}
+.chat-msg.me{background:var(--accent-dark);align-self:flex-end;border-bottom-right-radius:4px;color:#102409}
+.chat-msg.them{background:var(--panel2);align-self:flex-start;border-bottom-left-radius:4px}
+.chat-msg .author{font-size:10px;opacity:.75;margin-bottom:4px;font-weight:700}
 .chat-msg .time{font-size:10px;opacity:.6;text-align:right;margin-top:4px}
-.chat-input-area{padding:10px;border-top:2px solid #555;display:flex;gap:6px;flex-shrink:0}
-.chat-input{flex:1;padding:10px;border:none;border-radius:20px;background:#444;color:#fff;font-size:13px;outline:none}
-.chat-input:focus{background:#555}
-.chat-send{padding:10px 16px;background:#27ae60;color:#fff;border:none;border-radius:20px;cursor:pointer;font-weight:bold;font-size:16px}
+.chat-input-area{padding:10px;border-top:1px solid var(--line);display:flex;gap:8px;flex-shrink:0}
+.chat-input{flex:1;padding:10px 14px;border:1px solid var(--line);border-radius:18px;background:var(--panel2);color:var(--txt);font-size:13px;outline:none}
+.chat-input:focus{border-color:var(--accent)}
+.chat-send{padding:10px 16px;background:var(--accent-dark);color:#102409;border:none;border-radius:50%;cursor:pointer;font-weight:700;font-size:16px;width:42px;height:42px;display:flex;align-items:center;justify-content:center}
+.chat-send:hover{filter:brightness(1.08)}
 </style>
 </head>
 <body>
@@ -96,6 +107,7 @@ button.active{outline:3px solid #f1c40f;box-shadow:0 0 10px rgba(241,196,15,.5)}
 <button id="btnDel" class="btn-del" style="display:none">🚫 Удалить</button>
 <button id="btnSide" class="btn-side" style="display:none">🔄 Сторона: Белые</button>
 <button id="btnReset" class="btn-reset" style="display:none">🔄 Рестарт</button>
+<button id="btnUndo" class="btn-undo" style="display:none">↩ Отмена</button>
 </div>
 <div id="spawnPanel" class="spawn-panel">
 <button id="spawnColorBtn" class="spawn-color-btn">⚪ Белые</button>
@@ -132,19 +144,20 @@ button.active{outline:3px solid #f1c40f;box-shadow:0 0 10px rgba(241,196,15,.5)}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
-const APP_VERSION='1.9.4';
+const APP_VERSION='1.9.6';
 const isHost=location.hash==='#h';
 const CLIENT_ID='c'+Math.random().toString(36).slice(2,10)+Date.now().toString(36);
 try{firebase.initializeApp({apiKey:"AIzaSyAJJr63C9nLQ6SHHwDbqTmX3xHFY-_eyXM",authDomain:"chess-30025.firebaseapp.com",databaseURL:"https://chess-30025-default-rtdb.firebaseio.com",projectId:"chess-30025",storageBucket:"chess-30025.firebasestorage.app",messagingSenderId:"33351797755",appId:"1:33351797755:web:bea157f178c09b6c0d595e"})}catch(e){}
 const db=firebase.database();
-let board=Array(64).fill(null),blocked=new Set(),selected=null,currentTurn='w',gameOver=false,myColor=isHost?'w':'b',deleteMode=false,spawnMode=null,spawnColor='w',lastMove=null,enPassantTarget=null,castlingRights={wK:true,wQ:true,bK:true,bQ:true},chatOpen=false,lastMsgCount=0,unreadCount=0,moveHistory=[],appliedRev=0,appliedWriter='',hostColor='w';
-const startBoard=()=>{board=Array(64).fill(null);gameOver=false;lastMove=null;enPassantTarget=null;castlingRights={wK:true,wQ:true,bK:true,bQ:true};moveHistory=[];board[0]='bR';board[1]='bN';board[2]='bB';board[3]='bQ';board[4]='bK';board[5]='bB';board[6]='bN';board[7]='bR';for(let i=8;i<16;i++)board[i]='bP';for(let i=48;i<56;i++)board[i]='wP';board[56]='wR';board[57]='wN';board[58]='wB';board[59]='wQ';board[60]='wK';board[61]='wB';board[62]='wN';board[63]='wR'};
+let board=Array(64).fill(null),blocked=new Set(),selected=null,currentTurn='w',gameOver=false,myColor=isHost?'w':'b',deleteMode=false,spawnMode=null,spawnColor='w',lastMove=null,enPassantTarget=null,castlingRights={wK:true,wQ:true,bK:true,bQ:true},chatOpen=false,lastMsgCount=0,unreadCount=0,moveHistory=[],appliedRev=0,appliedWriter='',hostColor='w',undoStack=[];
+const startBoard=()=>{board=Array(64).fill(null);gameOver=false;lastMove=null;enPassantTarget=null;castlingRights={wK:true,wQ:true,bK:true,bQ:true};moveHistory=[];undoStack=[];board[0]='bR';board[1]='bN';board[2]='bB';board[3]='bQ';board[4]='bK';board[5]='bB';board[6]='bN';board[7]='bR';for(let i=8;i<16;i++)board[i]='bP';for(let i=48;i<56;i++)board[i]='wP';board[56]='wR';board[57]='wN';board[58]='wB';board[59]='wQ';board[60]='wK';board[61]='wB';board[62]='wN';board[63]='wR'};
 startBoard();
 const pieceFiles={'wP':'white_pawn.png','wR':'white_rook.png','wN':'white_knight.png','wB':'white_bishop.png','wQ':'white_qween.png','wK':'white_king.png','bP':'black_pawn.png','bR':'black_rook.png','bN':'black_knight.png','bB':'black_bishop.png','bQ':'black_qween.png','bK':'black_king.png','wCKING':'white_custom_king.png','wCQUEEN':'white_custom_queen.png','wCBISHOP':'white_custom_bishop.png','wCROOK':'white_custom_rook.png','wCKNIGHT':'white_custom_knight.png','wCPAWN':'white_pawn.png','bCKING':'black_custom_king.png','bCQUEEN':'black_custom_queen.png','bCBISHOP':'black_custom_bishop.png','bCROOK':'black_custom_rook.png','bCKNIGHT':'black_custom_knight.png','bCPAWN':'black_pawn.png'};
 const spawnTypes=[['K','♔'],['Q','♕'],['B','♗'],['N','♘'],['R','♖'],['P','♙'],['CKING','🚀'],['CQUEEN','👑'],['CBISHOP','🐉'],['CROOK','💣'],['CKNIGHT','🐴'],['CPAWN','♙']];
 const uniTxt={wK:'♔',wQ:'♕',wR:'♖',wB:'♗',wN:'♘',wP:'♙',bK:'♚',bQ:'♛',bR:'♜',bB:'♝',bN:'♞',bP:'♟',wCKING:'🚀',bCKING:'🚀',wCQUEEN:'👑',bCQUEEN:'👑',wCBISHOP:'🐉',bCBISHOP:'🐉',wCROOK:'💣',bCROOK:'💣',wCKNIGHT:'🐴',bCKNIGHT:'🐴',wCPAWN:'♙',bCPAWN:'♙'};
 const croppedImages={};
-function cropImage(src,cb){const img=new Image();img.crossOrigin="Anonymous";img.onload=()=>{try{const c=document.createElement('canvas');c.width=img.width;c.height=img.height;const x=c.getContext('2d');x.drawImage(img,0,0);const d=x.getImageData(0,0,c.width,c.height).data;let t=c.height,l=c.width,r=0,b=0;for(let y=0;y<c.height;y++)for(let xx=0;xx<c.width;xx++){if(d[(y*c.width+xx)*4+3]>10){if(xx<l)l=xx;if(xx>r)r=xx;if(y<t)t=y;if(y>b)b=y}}if(r>=l&&b>=t){const cc=document.createElement('canvas');cc.width=r-l+1;cc.height=b-t+1;cc.getContext('2d').drawImage(c,l,t,cc.width,cc.height,0,0,cc.width,cc.height);cb(cc.toDataURL())}else cb(src)}catch(e){cb(src)}};img.onerror=()=>cb(null);img.src=src}
+const pieceCache={};
+function cropImage(src,cb){if(pieceCache[src]){cb(pieceCache[src]);return}const img=new Image();img.crossOrigin="Anonymous";img.onload=()=>{let data=src;try{const c=document.createElement('canvas');c.width=img.width;c.height=img.height;const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(img,0,0);const d=x.getImageData(0,0,c.width,c.height).data;let t=c.height,l=c.width,r=0,b=0;for(let y=0;y<c.height;y++){const row=y*c.width;for(let xx=0;xx<c.width;xx++){if(d[(row+xx)*4+3]>10){if(xx<l)l=xx;if(xx>r)r=xx;if(y<t)t=y;if(y>b)b=y}}}if(r>=l&&b>=t){const cc=document.createElement('canvas');cc.width=r-l+1;cc.height=b-t+1;cc.getContext('2d').drawImage(c,l,t,cc.width,cc.height,0,0,cc.width,cc.height);data=cc.toDataURL()}}catch(e){}pieceCache[src]=data;cb(data)};img.onerror=()=>cb(null);img.src=src}
 const isValid=(r,c)=>r>=0&&r<8&&c>=0&&c<8;
 function squareName(idx){const r=Math.floor(idx/8),c=idx%8;return 'abcdefgh'[c]+(8-r)}
 function buildNotation(from,to,piece,captured,isEnPassant,isCastle,castleSide,promotion){
@@ -181,6 +194,7 @@ function isKingInCheck(color,tb=board){const ki=[];for(let i=0;i<64;i++)if(tb[i]
 function getValidMoves(index){const rm=getRawMoves(index),vm=[],p=board[index];if(!p)return[];const col=p[0],oppK=col==='w'?'bK':'wK';for(const mv of rm){if(board[mv]===oppK)continue;const tb=[...board];tb[mv]=p;tb[index]=null;if((p==='wP'||p==='wCPAWN')&&Math.floor(mv/8)===0)tb[mv]='wQ';if((p==='bP'||p==='bCPAWN')&&Math.floor(mv/8)===7)tb[mv]='bQ';if(p.slice(1)==='K'&&Math.abs(mv%8-index%8)===2){const br=Math.floor(index/8);if(mv%8===6){tb[br*8+5]=tb[br*8+7];tb[br*8+7]=null}else if(mv%8===2){tb[br*8+3]=tb[br*8+0];tb[br*8+0]=null}}if(!isKingInCheck(col,tb))vm.push(mv)}return vm}
 const statusGameEl=document.getElementById('statusGame'),statusTechEl=document.getElementById('statusTech');
 function setTechMsg(msg){statusTechEl.textContent=msg;setTimeout(()=>{if(statusTechEl.textContent===msg)statusTechEl.textContent=''},3000)}
+function setStatus(text,kind){statusGameEl.textContent=text;statusGameEl.classList.remove('turn','bad');if(kind==='turn')statusGameEl.classList.add('turn');else if(kind==='bad')statusGameEl.classList.add('bad')}
 function updateStatus(){
 const wk=board.filter(p=>p==='wK').length,bk=board.filter(p=>p==='bK').length;
 const kingless=(!wk||!bk||wk>1||bk>1);
@@ -188,16 +202,31 @@ let hm=false;
 for(let i=0;i<64;i++)if(board[i]&&board[i][0]===currentTurn&&getValidMoves(i).length>0){hm=true;break}
 const chk=!kingless&&isKingInCheck(currentTurn);
 const moverWhite=currentTurn==='w';
+const yourTurn=isHost?currentTurn===myColor:currentTurn!==hostColor;
 if(kingless){
 gameOver=!hm;
-if(!hm){statusGameEl.textContent='Король взят! Победа '+(moverWhite?'чёрных':'белых');statusGameEl.style.color='#e74c3c'}
-else{statusGameEl.textContent=moverWhite?'Ход белых':'Ход чёрных';statusGameEl.style.color='#fff'}
+if(!hm){setStatus('Король взят! Победа '+(moverWhite?'чёрных':'белых'),'bad')}
+else{setStatus(moverWhite?'Ход белых':'Ход чёрных',yourTurn?'turn':'')}
 return}
-if(!hm){gameOver=true;if(chk){statusGameEl.textContent=`МАТ! ${moverWhite?'чёрные':'белые'} победили!`;statusGameEl.style.color='#e74c3c'}else{statusGameEl.textContent='ПАТ! Ничья.';statusGameEl.style.color='#f1c40f'}}
-else{gameOver=false;if(chk){statusGameEl.textContent='ШАХ!';statusGameEl.style.color='#e74c3c'}else{statusGameEl.textContent=moverWhite?'Ход белых':'Ход чёрных';statusGameEl.style.color='#fff'}}}
+if(!hm){gameOver=true;if(chk){setStatus(`МАТ! ${moverWhite?'чёрные':'белые'} победили!`,'bad')}else{setStatus('ПАТ! Ничья.','bad')}}
+else{gameOver=false;if(chk){setStatus('ШАХ!','bad')}else{setStatus(moverWhite?'Ход белых':'Ход чёрных',yourTurn?'turn':'')}}}
+function undoMove(){
+  const snap=undoStack.pop();
+  if(!snap){setTechMsg('Отменять нечего');return}
+  board=snap.board;
+  currentTurn=snap.turn||'w';
+  lastMove=snap.lastMove||null;
+  enPassantTarget=(snap.enPassantTarget==null?null:snap.enPassantTarget);
+  castlingRights=snap.castlingRights||{wK:true,wQ:true,bK:true,bQ:true};
+  moveHistory=snap.moveHistory||[];
+  selected=null;gameOver=false;deleteMode=false;spawnMode=null;
+  btnDel.classList.remove('active');document.querySelectorAll('.spawn-btn').forEach(b=>b.classList.remove('active'));
+  syncToFirebase();render();updateStatus();updateMovesList();
+  setTechMsg('Ход отменён');
+}
 const boardEl=document.getElementById('board');
 function updateBoardOrientation(){if(myColor==='b')boardEl.classList.add('flipped');else boardEl.classList.remove('flipped')}
-function render(){boardEl.innerHTML='';if(selected!==null&&!board[selected])selected=null;const pm=(selected!==null&&!gameOver&&!deleteMode&&!spawnMode)?getValidMoves(selected):[];let ci=-1;const kt=[];for(let i=0;i<64;i++)if(board[i]===currentTurn+'K')kt.push(i);if(kt.length===1&&isKingInCheck(currentTurn))ci=kt[0];for(let i=0;i<64;i++){const sq=document.createElement('div'),r=Math.floor(i/8),c=i%8;sq.className='square '+((r+c)%2===0?'light':'dark');if(blocked.has(i))sq.classList.add('blocked');if(lastMove&&lastMove.from===i)sq.classList.add('last-from');if(lastMove&&lastMove.to===i)sq.classList.add('last-to');if(selected===i)sq.classList.add('selected');if(i===ci)sq.classList.add('check');if(pm.includes(i)){if(board[i]){sq.classList.add('move-cap')}else{const d=document.createElement('div');d.className='move-dot';sq.appendChild(d)}}if(board[i]){const key=board[i];if(croppedImages[key]){const im=document.createElement('img');im.src=croppedImages[key];im.className='piece-img';sq.appendChild(im)}else{const sp=document.createElement('span');sp.className='piece-txt '+key[0];sp.textContent=uniTxt[key]||'?';sq.appendChild(sp)}}sq.dataset.index=i;sq.addEventListener('click',()=>onSquareClick(i));boardEl.appendChild(sq)}}
+function render(){boardEl.innerHTML='';if(selected!==null&&!board[selected])selected=null;const pm=(selected!==null&&!gameOver&&!deleteMode&&!spawnMode)?getValidMoves(selected):[];let ci=-1;const kt=[];for(let i=0;i<64;i++)if(board[i]===currentTurn+'K')kt.push(i);if(kt.length===1&&isKingInCheck(currentTurn))ci=kt[0];for(let i=0;i<64;i++){const sq=document.createElement('div'),r=Math.floor(i/8),c=i%8;sq.className='square '+((r+c)%2===0?'light':'dark');if(blocked.has(i))sq.classList.add('blocked');if(lastMove&&(lastMove.from===i||lastMove.to===i))sq.classList.add('last-move');if(selected===i)sq.classList.add('selected');if(i===ci)sq.classList.add('check');if(pm.includes(i)){if(board[i]){sq.classList.add('move-cap')}else{const d=document.createElement('div');d.className='move-dot';sq.appendChild(d)}}if(board[i]){const key=board[i];if(croppedImages[key]){const im=document.createElement('img');im.src=croppedImages[key];im.className='piece-img';sq.appendChild(im)}else{const sp=document.createElement('span');sp.className='piece-txt '+key[0];sp.textContent=uniTxt[key]||'?';sq.appendChild(sp)}}sq.dataset.index=i;sq.addEventListener('click',()=>onSquareClick(i));boardEl.appendChild(sq)}}
 function canSelectPiece(p){if(!p)return false;if(p[0]!==currentTurn)return false;if(isHost)return true;return currentTurn!==hostColor}
 function explode3x3(centerIdx){const cr=Math.floor(centerIdx/8),cc=centerIdx%8;let exploded=0;for(let dr=-1;dr<=1;dr++){for(let dc=-1;dc<=1;dc++){const r=cr+dr,c=cc+dc;if(isValid(r,c)){const ti=r*8+c;if(board[ti]){board[ti]=null;exploded++}}}}return exploded}
 function onSquareClick(i){if(deleteMode&&isHost){if(blocked.has(i)){blocked.delete(i);setTechMsg('Клетка разблокирована')}else if(board[i]){board[i]=null;selected=null;setTechMsg('Фигура удалена')}else{blocked.add(i);setTechMsg('Клетка заблокирована')}gameOver=false;syncToFirebase();render();updateStatus();return}if(spawnMode&&isHost){if(blocked.has(i)){setTechMsg('Клетка заблокирована!');return}board[i]=spawnMode;gameOver=false;syncToFirebase();render();updateStatus();setTechMsg('Фигура поставлена');return}if(gameOver)return;const p=board[i];if(selected===null){if(canSelectPiece(p)){selected=i;render()}}else{if(i===selected){selected=null;render();return}const sp=board[selected],vm=getValidMoves(selected);if(vm.includes(i)){const fromRow=Math.floor(selected/8),fromCol=selected%8,toRow=Math.floor(i/8),toCol=i%8;const captured=board[i]!==null;const isCastle=(sp.slice(1)==='K'&&Math.abs(toCol-fromCol)===2);const castleSide=isCastle?(toCol===6?'K':'Q'):null;
@@ -205,6 +234,7 @@ const tempBoard=[...board];tempBoard[i]=sp;tempBoard[selected]=null;
 if(isCastle){if(toCol===6){tempBoard[fromRow*8+5]=tempBoard[fromRow*8+7];tempBoard[fromRow*8+7]=null}else if(toCol===2){tempBoard[fromRow*8+3]=tempBoard[fromRow*8+0];tempBoard[fromRow*8+0]=null}}
 if((sp==='wP'||sp==='wCPAWN')&&toRow===0){tempBoard[i]='wQ'}if((sp==='bP'||sp==='bCPAWN')&&toRow===7){tempBoard[i]='bQ'}
 if(isKingInCheck(sp[0],tempBoard)){setTechMsg('Этот ход оставляет вашего короля под шахом!');return}
+undoStack.push({board:[...board],turn:currentTurn,lastMove:lastMove?{...lastMove}:null,enPassantTarget:enPassantTarget,castlingRights:{...castlingRights},moveHistory:[...moveHistory]});
 board[i]=sp;board[selected]=null;
 let explodedCount=0;
 if(sp.slice(1)==='CKING'&&captured){explodedCount=explode3x3(i);if(explodedCount>0)setTechMsg('💥 Взрыв! Уничтожено: '+explodedCount)}
@@ -217,10 +247,10 @@ currentTurn=currentTurn==='w'?'b':'w';
 gameOver=false;
 syncToFirebase();render();updateStatus();updateMovesList()}else{if(canSelectPiece(p)){selected=i;render()}else{selected=null;render()}}}}
 const roomRef=db.ref('rooms/default');
-function syncToFirebase(){try{const rev=appliedRev+1;appliedRev=rev;appliedWriter=CLIENT_ID;roomRef.update({board:board,blocked:Array.from(blocked),turn:currentTurn,hostColor:isHost?myColor:hostColor,lastMove:lastMove,enPassantTarget:enPassantTarget,castlingRights:castlingRights,moveHistory:moveHistory,updated:Date.now(),rev:rev,writer:CLIENT_ID})}catch(e){}}
+function syncToFirebase(){try{const rev=appliedRev+1;appliedRev=rev;appliedWriter=CLIENT_ID;roomRef.update({board:board,blocked:Array.from(blocked),turn:currentTurn,hostColor:isHost?myColor:hostColor,lastMove:lastMove,enPassantTarget:enPassantTarget,castlingRights:castlingRights,moveHistory:moveHistory,undoStack:undoStack,updated:Date.now(),rev:rev,writer:CLIENT_ID})}catch(e){}}
 roomRef.on('value',snap=>{const d=snap.val();if(!d){statusGameEl.textContent='Сделайте ход';return}
 if(typeof d.rev==='number'){const w=d.writer||'';if(d.rev<appliedRev)return;if(d.rev===appliedRev&&w<=appliedWriter)return;appliedRev=d.rev;appliedWriter=w}else if(d.writer===CLIENT_ID){return}
-if(d.board)board=Array.from({length:64},(_,i)=>d.board[i]||null);blocked=new Set(d.blocked||[]);currentTurn=d.turn||'w';lastMove=d.lastMove||null;enPassantTarget=(d.enPassantTarget==null?null:d.enPassantTarget);castlingRights=d.castlingRights||{wK:true,wQ:true,bK:true,bQ:true};moveHistory=d.moveHistory||[];if(d.hostColor){hostColor=d.hostColor;if(!isHost)myColor=hostColor==='w'?'b':'w'}selected=null;updateBoardOrientation();if(isHost)updateSideButton();render();updateStatus();updateMovesList()});
+if(d.board)board=Array.from({length:64},(_,i)=>d.board[i]||null);blocked=new Set(d.blocked||[]);currentTurn=d.turn||'w';lastMove=d.lastMove||null;enPassantTarget=(d.enPassantTarget==null?null:d.enPassantTarget);castlingRights=d.castlingRights||{wK:true,wQ:true,bK:true,bQ:true};moveHistory=d.moveHistory||[];undoStack=d.undoStack||[];if(d.hostColor){hostColor=d.hostColor;if(!isHost)myColor=hostColor==='w'?'b':'w'}selected=null;updateBoardOrientation();if(isHost)updateSideButton();render();updateStatus();updateMovesList()});
 const chatRef=db.ref('rooms/default/chat');
 const chatMessagesEl=document.getElementById('chatMessages'),chatBadge=document.getElementById('chatBadge');
 function renderChatEmpty(){chatMessagesEl.innerHTML='<div class="empty-hint">♟ Шахматы<span class="ver">v'+APP_VERSION+'</span></div>'}
@@ -244,15 +274,37 @@ function showModal(text,cb){modalText.textContent=text;modalCallback=cb;modalOve
 function hideModal(){modalOverlay.classList.remove('visible');modalCallback=null}
 modalCancel.onclick=hideModal;
 modalOk.onclick=()=>{if(modalCallback)modalCallback();hideModal()};
-if(isHost){btnDel.style.display='block';btnSide.style.display='block';btnReset.style.display='block';spawnPanel.classList.add('visible');btnDel.onclick=()=>{deleteMode=!deleteMode;spawnMode=null;document.querySelectorAll('.spawn-btn').forEach(b=>b.classList.remove('active'));btnDel.classList.toggle('active',deleteMode);setTechMsg(deleteMode?'Режим удаления':'Выключено');if(deleteMode)selected=null;render()};btnSide.onclick=()=>{myColor=myColor==='w'?'b':'w';hostColor=myColor;selected=null;updateSideButton();updateBoardOrientation();setTechMsg(`Теперь вы за ${myColor==='w'?'белых':'чёрных'}`);syncToFirebase();render()};btnReset.onclick=()=>showModal('Сбросить игру?',()=>{startBoard();blocked.clear();selected=null;currentTurn='w';gameOver=false;deleteMode=false;spawnMode=null;btnDel.classList.remove('active');document.querySelectorAll('.spawn-btn').forEach(b=>b.classList.remove('active'));try{chatRef.remove()}catch(e){}lastMsgCount=0;unreadCount=0;chatBadge.style.display='none';renderChatEmpty();syncToFirebase();render();updateStatus();updateMovesList();setTechMsg('Игра сброшена')})}
-function updateMovesList(){const movesListEl=document.getElementById('movesList');if(!moveHistory||moveHistory.length===0){movesListEl.innerHTML='<div class="empty-hint">Пока нет ходов</div>';return}movesListEl.innerHTML='';for(let i=0;i<moveHistory.length;i+=2){const moveNum=Math.floor(i/2)+1;const whiteMove=moveHistory[i]||'';const blackMove=moveHistory[i+1]||'';const entry=document.createElement('div');entry.className='move-entry';entry.innerHTML=`<span class="move-num">${moveNum}.</span><span class="move-white">${whiteMove}</span><span class="move-black">${blackMove}</span>`;movesListEl.appendChild(entry)}movesListEl.scrollTop=movesListEl.scrollHeight}
+if(isHost){btnDel.style.display='block';btnSide.style.display='block';btnReset.style.display='block';btnUndo.style.display='block';spawnPanel.classList.add('visible');btnUndo.onclick=undoMove;btnDel.onclick=()=>{deleteMode=!deleteMode;spawnMode=null;document.querySelectorAll('.spawn-btn').forEach(b=>b.classList.remove('active'));btnDel.classList.toggle('active',deleteMode);setTechMsg(deleteMode?'Режим удаления':'Выключено');if(deleteMode)selected=null;render()};btnSide.onclick=()=>{myColor=myColor==='w'?'b':'w';hostColor=myColor;selected=null;updateSideButton();updateBoardOrientation();setTechMsg(`Теперь вы за ${myColor==='w'?'белых':'чёрных'}`);syncToFirebase();render()};btnReset.onclick=()=>showModal('Сбросить игру?',()=>{startBoard();blocked.clear();selected=null;currentTurn='w';gameOver=false;deleteMode=false;spawnMode=null;btnDel.classList.remove('active');document.querySelectorAll('.spawn-btn').forEach(b=>b.classList.remove('active'));try{chatRef.remove()}catch(e){}lastMsgCount=0;unreadCount=0;chatBadge.style.display='none';renderChatEmpty();syncToFirebase();render();updateStatus();updateMovesList();setTechMsg('Игра сброшена')})}
+function updateMovesList(){const movesListEl=document.getElementById('movesList');if(!moveHistory||moveHistory.length===0){movesListEl.innerHTML='<div class="empty-hint">Пока нет ходов</div>';return}movesListEl.innerHTML='';for(let i=0;i<moveHistory.length;i+=2){const moveNum=Math.floor(i/2)+1;const whiteMove=moveHistory[i]||'';const blackMove=moveHistory[i+1]||'';const entry=document.createElement('div');entry.className='move-entry';entry.innerHTML=`<span class="move-num">${moveNum}.</span><span class="move-white">${whiteMove}</span><span class="move-black">${blackMove}</span>`;if(i+1===moveHistory.length)entry.classList.add('hl');movesListEl.appendChild(entry)}movesListEl.scrollTop=movesListEl.scrollHeight}
 updateBoardOrientation();
 render();
 updateStatus();
 updateMovesList();
 if(isHost)buildSpawnPanel();
 setTechMsg('v'+APP_VERSION);
-for(const k in pieceFiles){cropImage(pieceFiles[k],data=>{if(data){croppedImages[k]=data;render();if(isHost)buildSpawnPanel()}})}
+const standardK=['wP','wR','wN','wB','wQ','wK','bP','bR','bN','bB','bQ','bK'];
+const customK=Object.keys(pieceFiles).filter(k=>standardK.indexOf(k)<0);
+let imgPhase='std',imgIx=0,imgHot=false;
+function loadPieces(){
+  const list=imgPhase==='std'?standardK:customK;
+  const step=()=>{
+    if(imgIx>=list.length){
+      if(imgPhase==='std'){
+        imgPhase='custom';imgIx=0;
+        if(!imgHot){imgHot=true;render()}
+        loadPieces();
+      }else{
+        if(!imgHot){imgHot=true;render()}
+        if(isHost)buildSpawnPanel();
+      }
+      return;
+    }
+    const k=list[imgIx++];
+    cropImage(pieceFiles[k],data=>{if(data)croppedImages[k]=data;step()})
+  };
+  step()
+}
+setTimeout(loadPieces,60);
 </script>
 </body>
 </html>
